@@ -286,8 +286,8 @@ fn start_of_day(now: DateTime<Local>) -> DateTime<Local> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Timelike;
     use crate::memory::{EventKind, NewEvent};
+    use chrono::Timelike;
 
     fn event(title: &str, url: Option<&str>, at: i64) -> NewEvent {
         NewEvent {
