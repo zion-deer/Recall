@@ -5,7 +5,7 @@
   "identifier": "com.recallapp.desktop",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://127.0.0.1:41730",
+    "devUrl": "http://127.0.0.1:51820",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
   },

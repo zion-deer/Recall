@@ -1,4 +1,3 @@
-/// <reference types="vitest/config" />
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -15,10 +14,10 @@ export default defineConfig({
   },
   clearScreen: false,
   server: {
-    port: 41730,
+    port: 51820,
     strictPort: true,
     host: host || "127.0.0.1",
-    hmr: host ? { protocol: "ws", host, port: 41731 } : undefined,
+    hmr: host ? { protocol: "ws", host, port: 51821 } : undefined,
     watch: {
       ignored: ["**/src-tauri/**"],
     },
@@ -31,7 +30,5 @@ export default defineConfig({
     // Assets load from disk inside the desktop app, so one bundle is fine.
     chunkSizeWarningLimit: 1024,
   },
-  test: {
-    environment: "node",
-  },
 });
+

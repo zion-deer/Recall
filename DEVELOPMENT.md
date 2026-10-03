@@ -13,7 +13,7 @@
 
 ```bash
 npm install
-npm run tauri dev        # desktop app with hot reload (Vite on 127.0.0.1:41730)
+npm run tauri dev        # desktop app with hot reload (Vite on 127.0.0.1:51820)
 ```
 
 Data from dev builds goes to the same per-user app data folder as release builds. To start fresh, quit Recall and delete that folder (see PRIVACY.md for locations).

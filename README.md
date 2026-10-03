@@ -39,7 +39,7 @@ npm install
 npm run tauri dev
 ```
 
-This starts the Vite dev server on `http://127.0.0.1:41730` and opens the Recall desktop window. (Opening that URL in a regular browser only shows a notice — Recall's data lives in the desktop backend.)
+This starts the Vite dev server on `http://127.0.0.1:51820` and opens the Recall desktop window. (Opening that URL in a regular browser only shows a notice — Recall's data lives in the desktop backend.)
 
 Run all checks:
 
