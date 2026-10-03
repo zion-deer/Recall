@@ -34,12 +34,37 @@ Generate a keypair on a trusted machine. Do not commit the private key.
 npx tauri signer generate -w ~/.tauri/recall.key
 ```
 
-Replace `plugins.updater.pubkey` with the contents of the `.pub` file, then store these GitHub Actions secrets:
+Replace `plugins.updater.pubkey` with the contents of the `.pub` file, then store these **repository** secrets (Settings → Secrets and variables → Actions → Repository secrets):
 
 | Secret | Required for |
 | --- | --- |
-| `TAURI_SIGNING_PRIVATE_KEY` | Every update. The private minisign key. |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Only if the key has a password. |
+| `TAURI_SIGNING_PRIVATE_KEY` | Every release. The **private** key file (`recall.key`), not the `.pub` file. |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Only if you set a password when generating the key. If the key has **no** password, **do not** create this secret (an empty or guessed value causes “Wrong password for that key”). |
+
+### Pasting the private key correctly
+
+The private key is a small text file (often ~348 bytes). Paste **everything** into `TAURI_SIGNING_PRIVATE_KEY`:
+
+```text
+untrusted comment: minisign encrypted secret key
+<base64 lines…>
+```
+
+Include both comment lines and the base64 block. Do not add quotes, `%`, or extra blank lines at the end. On macOS you can copy the file exactly with:
+
+```bash
+pbcopy < ~/.tauri/recall.key
+```
+
+The password secret must match **exactly** what you typed at `tauri signer generate` (case-sensitive). If you are not sure of the password, regenerate:
+
+```bash
+npx tauri signer generate -w ~/.tauri/recall.key -f --ci --password ""
+```
+
+Then update `plugins.updater.pubkey` from `recall.key.pub`, set the new private key in GitHub, delete `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you used an empty password, and cut a new release tag.
+
+Release workflow runs `scripts/verify-tauri-signing.mjs` **before** the long compile so a bad password fails in under a minute instead of after bundling.
 | `APPLE_CERTIFICATE` | Optional macOS Developer ID `.p12`, base64. |
 | `APPLE_CERTIFICATE_PASSWORD` | Optional macOS certificate password. |
 | `APPLE_SIGNING_IDENTITY` | Optional, for example `Developer ID Application: Name (TEAMID)`. |
