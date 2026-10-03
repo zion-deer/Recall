@@ -34,7 +34,15 @@ Generate a keypair on a trusted machine. Do not commit the private key.
 npx tauri signer generate -w ~/.tauri/recall.key
 ```
 
-Replace `plugins.updater.pubkey` with the contents of the `.pub` file, then store these **repository** secrets (Settings → Secrets and variables → Actions → Repository secrets):
+Replace `plugins.updater.pubkey` with the contents of **`recall.key.pub`** only:
+
+```bash
+cat ~/.tauri/recall.key.pub
+```
+
+That line decodes to `minisign public key: …`. Do **not** paste the **“Public signature:”** line printed by `tauri signer sign` (that decodes to `signature from tauri secret key` and will break updates).
+
+Then store these **repository** secrets (Settings → Secrets and variables → Actions → Repository secrets):
 
 | Secret | Required for |
 | --- | --- |
