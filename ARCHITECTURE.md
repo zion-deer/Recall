@@ -16,7 +16,8 @@ Recall is a [Tauri 2](https://tauri.app) desktop app: a Rust core that does all 
 │ settings.rs   typed settings + validation                        │
 │ memory/                                                          │
 │   mod.rs        event model (NewEvent, MemoryEvent, EventKind)   │
-│   recorder.rs   app-activity collector (background thread)       │
+│   recorder.rs   collector scheduler + app-activity sessions      │
+│   browser.rs    Chrome/Edge/Firefox/Safari history providers     │
 │   privacy.rs    exclusion rules + PrivacyFilter                  │
 │   store.rs      event queries, deletion, retention, stats        │
 │   export.rs     streaming JSON export                            │
@@ -35,7 +36,7 @@ Platform adapter ──► Collector ──► Privacy filter ──► Store (S
   idle time)          sessions)       drop on match)                       home)
 ```
 
-- **Collectors** produce `NewEvent`s. v0.1 has one: application activity. Browser history and screenshots will be separate collectors that emit the same event model with their own `kind`.
+- **Collectors** produce `NewEvent`s. Application activity and browser history both emit the same event model with distinct `kind`s, so timeline, retention, export and deletion work uniformly.
 - **The privacy filter runs before anything is written.** Excluded activity is never stored, not even as a placeholder. Adding an exclusion also deletes existing matching memories.
 - **Recall never records itself** (matched by process id), so what you look at inside Recall doesn't end up in your memory.
 
@@ -61,15 +62,29 @@ One SQLite database: `<app data dir>/recall.db` (`%APPDATA%\com.recallapp.deskto
 - File permissions restricted to the current user (0600 / 0700 on Unix; per-user AppData ACLs on Windows).
 - Timestamps are Unix milliseconds, UTC. The UI converts to local time.
 
-### Schema (migration 1)
+### Schema (migrations 1–2)
 
 | Table | Purpose |
 | --- | --- |
 | `events` | One row per memory. `kind`, `source`, `started_at`, `ended_at`, `app_name`, `app_id`, `window_title`, `url`, `file_path`, `metadata` (JSON). Indexed by `started_at` and `app_name`. |
 | `settings` | Key/value. User settings are stored as one JSON document so new settings don't need migrations; missing fields fall back to defaults, invalid documents fall back to defaults. |
 | `exclusions` | `kind` ∈ {app, website, folder, title}, `pattern`; unique per kind case-insensitively. Seeded with password managers, Signal, and private-browsing title markers. |
+| `browser_cursors` | Per-provider/profile high-water marks for incremental imports. Prevents old or paused activity from being backfilled. |
+| `events_fts` | FTS5 external-content index over app, title, URL and file path, synchronized by triggers. |
 
 `url`, `file_path` and `metadata` exist now so upcoming collectors don't need a destructive change.
+
+### Browser providers
+
+`memory::browser::BrowserProvider` isolates browser-specific paths, schemas, timestamp epochs, and queries. Chrome and Edge share the Chromium implementation; Firefox and Safari have their own schema formats. Every 15 seconds the collector:
+
+1. Discovers normal browser profiles selected in Settings.
+2. Copies only the history SQLite database (and WAL/SHM companions) to a private temporary snapshot.
+3. Reads visits newer than the local high-water mark (maximum 500 per scan).
+4. Accepts only sanitized HTTP(S) URLs, applies website/app/title exclusions, and writes `browser_activity` events idempotently.
+5. Advances the cursor. On first enable or resume it only establishes a baseline, so disabled/private time is never backfilled.
+
+It never opens cookie, login, autofill, payment, or preference databases. Browser private modes do not persist visits to the normal history database.
 
 ### Migrations
 

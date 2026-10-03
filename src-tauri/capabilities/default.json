@@ -16,7 +16,9 @@
     "allow-pause-recording",
     "allow-resume-recording",
     "allow-get-recorder-status",
+    "allow-get-browser-statuses",
     "allow-list-events",
+    "allow-search-events",
     "allow-get-event",
     "allow-get-app-usage",
     "allow-get-memory-stats",
@@ -30,6 +32,7 @@
     "allow-get-permissions",
     "allow-request-permission",
     "allow-open-data-folder",
-    "allow-open-log-folder"
+    "allow-open-log-folder",
+    "allow-open-url"
   ]
 }

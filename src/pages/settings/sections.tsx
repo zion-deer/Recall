@@ -99,7 +99,14 @@ export function MemorySection() {
           onChange={(v) => set({ windowTitlesEnabled: v })}
           disabled={!s.appActivityEnabled}
         />
+        <ToggleRow
+          label="Browser activity"
+          description="Page title, URL, browser, and visit time from normal browsing history. Private browsing is never imported."
+          checked={s.browserActivityEnabled}
+          onChange={(v) => set({ browserActivityEnabled: v })}
+        />
       </Group>
+      {s.browserActivityEnabled && <BrowserChoices />}
       <Group title="Retention">
         <Row
           label="Keep memories for"
@@ -153,6 +160,70 @@ export function MemorySection() {
   );
 }
 
+function BrowserChoices() {
+  const [s, set] = useSetting();
+  const statuses = useAsync(() => api.browserStatuses(), []);
+  const byId = new Map(statuses.data?.map((status) => [status.id, status]));
+  const choices = [
+    {
+      id: "chrome",
+      label: "Google Chrome",
+      checked: s.browserChromeEnabled,
+      update: (value: boolean) => set({ browserChromeEnabled: value }),
+    },
+    {
+      id: "edge",
+      label: "Microsoft Edge",
+      checked: s.browserEdgeEnabled,
+      update: (value: boolean) => set({ browserEdgeEnabled: value }),
+    },
+    {
+      id: "firefox",
+      label: "Firefox",
+      checked: s.browserFirefoxEnabled,
+      update: (value: boolean) => set({ browserFirefoxEnabled: value }),
+    },
+    {
+      id: "safari",
+      label: "Safari",
+      checked: s.browserSafariEnabled,
+      update: (value: boolean) => set({ browserSafariEnabled: value }),
+    },
+  ] as const;
+
+  return (
+    <Group title="Browsers">
+      {choices.map((choice) => {
+        const status = byId.get(choice.id);
+        const unavailable = status?.state === "unsupported";
+        const state = !status
+          ? "Checking…"
+          : status.state === "ready"
+            ? `${status.profileCount} ${status.profileCount === 1 ? "profile" : "profiles"} found`
+            : status.state === "not_installed"
+              ? "Not installed"
+              : status.state === "unsupported"
+                ? "Not available on this platform"
+                : status.message ?? "Temporarily unavailable";
+        return (
+          <ToggleRow
+            key={choice.id}
+            label={choice.label}
+            description={state}
+            checked={choice.checked && !unavailable}
+            onChange={choice.update}
+            disabled={unavailable}
+          />
+        );
+      })}
+      <Row
+        label="Private browsing"
+        description="Recall reads only the normal history database that browsers persist. Incognito, InPrivate, Firefox Private Browsing, and Safari Private Browsing do not write visits there, so Recall cannot import them. Recall never attempts to bypass that boundary."
+      />
+    </Group>
+  );
+}
+
 export function PrivacySection() {
   const [s, set] = useSetting();
   const { status, pause, resume } = useRecall();
@@ -200,11 +271,10 @@ export function PrivacySection() {
           onChange={(v) => set({ appActivityEnabled: v })}
         />
         <ToggleRow
-          label={<>Browser history<SoonBadge /></>}
-          description="Page addresses and titles from supported browsers. Private windows will never be recorded."
-          checked={false}
-          onChange={() => {}}
-          disabled
+          label="Browser activity"
+          description="Page addresses and titles from normal browser history. Incognito and private windows are never imported."
+          checked={s.browserActivityEnabled}
+          onChange={(v) => set({ browserActivityEnabled: v })}
         />
         <ToggleRow
           label={<>Screenshots<SoonBadge /></>}
@@ -214,6 +284,7 @@ export function PrivacySection() {
           disabled
         />
       </Group>
+      {s.browserActivityEnabled && <BrowserChoices />}
 
       <Group title="Never record">
         <Row

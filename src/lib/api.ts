@@ -9,6 +9,11 @@ export interface Settings {
   pausedUntil: number | null;
   appActivityEnabled: boolean;
   windowTitlesEnabled: boolean;
+  browserActivityEnabled: boolean;
+  browserChromeEnabled: boolean;
+  browserEdgeEnabled: boolean;
+  browserFirefoxEnabled: boolean;
+  browserSafariEnabled: boolean;
   retentionDays: number | null;
   idleThresholdSecs: number;
   pollIntervalSecs: number;
@@ -52,6 +57,24 @@ export interface EventQuery {
   appName?: string;
   kind?: string;
   limit?: number;
+}
+
+export interface SearchQuery {
+  text: string;
+  start?: number;
+  end?: number;
+  kind?: string;
+  limit?: number;
+}
+
+export interface BrowserStatus {
+  id: "chrome" | "edge" | "firefox" | "safari";
+  name: string;
+  supported: boolean;
+  installed: boolean;
+  profileCount: number;
+  state: "ready" | "not_installed" | "unavailable" | "unsupported";
+  message: string | null;
 }
 
 export interface AppUsage {
@@ -127,8 +150,10 @@ export const api = {
   pause: (minutes?: number) => call<Settings>("pause_recording", { minutes: minutes ?? null }),
   resume: () => call<Settings>("resume_recording"),
   recorderStatus: () => call<RecorderStatus>("get_recorder_status"),
+  browserStatuses: () => call<BrowserStatus[]>("get_browser_statuses"),
 
   listEvents: (query: EventQuery) => call<MemoryEvent[]>("list_events", { query }),
+  searchEvents: (query: SearchQuery) => call<MemoryEvent[]>("search_events", { query }),
   getEvent: (id: number) => call<MemoryEvent>("get_event", { id }),
   appUsage: (start: number, end: number) => call<AppUsage[]>("get_app_usage", { start, end }),
   stats: () => call<MemoryStats>("get_memory_stats"),
@@ -148,6 +173,7 @@ export const api = {
   requestPermission: (id: string) => call<void>("request_permission", { id }),
   openDataFolder: () => call<void>("open_data_folder"),
   openLogFolder: () => call<void>("open_log_folder"),
+  openUrl: (url: string) => call<void>("open_url", { url }),
 };
 
 export const events = {

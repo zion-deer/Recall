@@ -9,7 +9,7 @@ Recall exists to remember sensitive things about how you use your computer. It i
 - Recording is **off until you turn it on** during setup.
 - You can **pause, exclude, delete, and export** at any time.
 
-## What Recall records (v0.1)
+## What Recall records (v0.1.1)
 
 When recording is on, for the window in front:
 
@@ -19,8 +19,15 @@ When recording is on, for the window in front:
 | Application path / bundle | Used to tell apps apart and to match exclusions |
 | Window title | Can be turned off (Settings → Memory → Window titles) |
 | Start and end time | Idle periods (no keyboard/mouse input) are not counted |
+| Normal browser visits (optional) | Browser name, page title, sanitized HTTP(S) URL, and visit time from Chrome, Edge, Firefox, and Safari on macOS |
 
-Recall does **not** record keystrokes, clipboard contents, screen contents, audio, or file contents. Screenshots and browser history are not part of this version; when added they will be separate, off-by-default switches with their own retention.
+Recall does **not** record keystrokes, clipboard contents, screen contents, audio, file contents, cookies, saved logins, autofill, payment information, or browser preferences. Screenshots are not part of this version.
+
+Browser memory is off by default. When enabled, Recall reads only the browser's normal history SQLite database every 15 seconds. It makes a private, short-lived snapshot because browsers may keep the original file locked. It never modifies the browser database.
+
+Private/incognito sessions do not write visits to normal browser history, so Recall cannot import them. When browser memory, global recording, or a specific browser is disabled—or Recall is paused—Recall does not open that history database. Re-enabling establishes a new high-water mark, so activity from the disabled period is not imported later.
+
+Only `http://` and `https://` URLs are accepted. URL credentials are rejected; fragments are removed; values for common authentication parameters such as `token`, `code`, `session`, and `password` are replaced with `[redacted]`.
 
 ## What Recall never records
 
@@ -28,6 +35,7 @@ Recall does **not** record keystrokes, clipboard contents, screen contents, audi
 - **Excluded apps, websites, folders and title keywords.** Excluded activity is dropped before it's written — not hidden, never stored. Adding an exclusion also deletes existing memories that match.
 - **Defaults:** password managers (1Password, Bitwarden, KeePass, KeePassXC, LastPass, Dashlane, Enpass, Proton Pass, Keychain Access, Passwords, Credential Manager), Signal, and windows whose title contains "Private Browsing", "Incognito" or "InPrivate". You can change these in Settings → Privacy.
 - While **paused** or with **recording off**, nothing is recorded.
+- **Excluded websites.** URL and page title are discarded together before storage, including subdomains.
 
 ## Where your data lives
 
@@ -66,8 +74,8 @@ Format (`formatVersion` 1):
 {
   "format": "recall-export",
   "formatVersion": 1,
-  "appVersion": "0.1.0",
-  "schemaVersion": 1,
+  "appVersion": "0.1.1",
+  "schemaVersion": 2,
   "exportedAt": 1791052800000,
   "settings": { "...": "your current settings" },
   "exclusions": [

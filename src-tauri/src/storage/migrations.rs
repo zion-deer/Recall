@@ -15,10 +15,11 @@ pub struct Migration {
     pub sql: &'static str,
 }
 
-pub const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    description: "events, settings and exclusions",
-    sql: r#"
+pub const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        description: "events, settings and exclusions",
+        sql: r#"
         CREATE TABLE events (
             id           INTEGER PRIMARY KEY,
             kind         TEXT    NOT NULL,
@@ -72,7 +73,61 @@ pub const MIGRATIONS: &[Migration] = &[Migration {
             ('website', 'bitwarden.com', 0),
             ('website', 'lastpass.com', 0);
     "#,
-}];
+    },
+    Migration {
+        version: 2,
+        description: "browser memory and full-text search",
+        sql: r#"
+        -- A provider cursor prevents Recall from importing old history on
+        -- startup and makes each incremental scan inexpensive.
+        CREATE TABLE browser_cursors (
+            provider_id TEXT NOT NULL,
+            profile_id  TEXT NOT NULL,
+            last_visit  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL,
+            PRIMARY KEY (provider_id, profile_id)
+        );
+
+        -- The source visit id is not globally meaningful, so the provider and
+        -- profile (stored in source/app_id) are part of the dedupe key.
+        CREATE UNIQUE INDEX idx_events_browser_dedupe
+            ON events (source, app_id, started_at, url)
+            WHERE kind = 'browser_activity';
+        CREATE INDEX idx_events_url
+            ON events (url COLLATE NOCASE)
+            WHERE url IS NOT NULL;
+
+        CREATE VIRTUAL TABLE events_fts USING fts5(
+            app_name,
+            window_title,
+            url,
+            file_path,
+            content='events',
+            content_rowid='id',
+            tokenize='unicode61 remove_diacritics 2'
+        );
+
+        CREATE TRIGGER events_fts_insert AFTER INSERT ON events BEGIN
+            INSERT INTO events_fts(rowid, app_name, window_title, url, file_path)
+            VALUES (new.id, new.app_name, new.window_title, new.url, new.file_path);
+        END;
+        CREATE TRIGGER events_fts_delete AFTER DELETE ON events BEGIN
+            INSERT INTO events_fts(events_fts, rowid, app_name, window_title, url, file_path)
+            VALUES ('delete', old.id, old.app_name, old.window_title, old.url, old.file_path);
+        END;
+        CREATE TRIGGER events_fts_update AFTER UPDATE ON events BEGIN
+            INSERT INTO events_fts(events_fts, rowid, app_name, window_title, url, file_path)
+            VALUES ('delete', old.id, old.app_name, old.window_title, old.url, old.file_path);
+            INSERT INTO events_fts(rowid, app_name, window_title, url, file_path)
+            VALUES (new.id, new.app_name, new.window_title, new.url, new.file_path);
+        END;
+
+        -- Index memories written by v0.1.0 before this migration.
+        INSERT INTO events_fts(rowid, app_name, window_title, url, file_path)
+            SELECT id, app_name, window_title, url, file_path FROM events;
+    "#,
+    },
+];
 
 pub fn latest_version() -> u32 {
     MIGRATIONS.last().map(|m| m.version).unwrap_or(0)
@@ -154,5 +209,36 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM exclusions", [], |r| r.get(0))
             .unwrap();
         assert!(n > 0);
+    }
+
+    #[test]
+    fn upgrades_v1_without_losing_events_and_builds_search_index() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let first = &MIGRATIONS[0];
+        conn.execute_batch(first.sql).unwrap();
+        conn.pragma_update(None, "user_version", first.version)
+            .unwrap();
+        conn.execute(
+            "INSERT INTO events
+             (kind, source, started_at, ended_at, app_name, window_title, metadata, created_at)
+             VALUES ('app_activity', 'test', 1, 2, 'Code', 'migration note', '{}', 1)",
+            [],
+        )
+        .unwrap();
+
+        assert_eq!(migrate(&mut conn).unwrap(), 1);
+        assert_eq!(current_version(&conn).unwrap(), 2);
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+        let indexed: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM events_fts WHERE events_fts MATCH 'migration'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(indexed, 1);
     }
 }

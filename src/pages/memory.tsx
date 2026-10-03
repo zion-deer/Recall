@@ -36,6 +36,7 @@ const ALL = "__all__";
 const TYPE_ITEMS = [
   { value: ALL, label: "All types" },
   { value: "app_activity", label: "App activity" },
+  { value: "browser_activity", label: "Websites" },
 ];
 
 function toDateInput(ts: number): string {

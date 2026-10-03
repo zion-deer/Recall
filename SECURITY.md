@@ -14,6 +14,8 @@ Recall's database is effectively a diary of the user's computer use. We treat it
 | SQL injection | All SQL uses bound parameters; covered by tests with SQL metacharacters in titles. |
 | Path traversal on export | Export path must be absolute, end in `.json`, contain no `..`, and its parent must exist. Writes go to a temp file and are renamed. |
 | Command injection | No shell is ever invoked. Opening folders passes a single path argument to `explorer` / `open` / `xdg-open`, only for Recall's own data/log folders. |
+| Malicious browser metadata / URLs | React escapes titles. Rust accepts only parsed HTTP(S) URLs, rejects credentials and control characters, removes fragments, redacts common auth query values, bounds lengths, and opens URLs through Tauri's OS-handler API—never a shell. |
+| Browser secrets exposed | Providers open only normal history databases. Cookie, login, token, autofill, payment and preference stores are never accessed. Private visits are not persisted by browsers and cannot be imported. |
 | Sensitive data in logs | Logging policy: never log titles, URLs, app names or file paths. The recorder logs only state transitions. |
 | Data loss from upgrades | Versioned, transactional migrations; automatic backup before upgrading; refusal to open newer schemas. |
 | Two instances writing concurrently | Single-instance plugin focuses the existing window instead. |

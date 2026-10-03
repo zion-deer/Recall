@@ -2,7 +2,21 @@
 
 All notable changes to Recall are documented here. This project uses [semantic versioning](https://semver.org).
 
-## [Unreleased] — 0.1.0
+## [Unreleased]
+
+### Features
+- Browser memory for Chrome, Edge, Firefox, and Safari on macOS: URL, page title, browser, and visit time.
+- Browser-level controls and installation/status reporting in Memory and Privacy settings.
+- Normal browser-history databases only; private/incognito visits are never imported.
+- Website exclusions are applied before URL or title is stored and retroactively delete matching memories.
+- SQLite FTS5 search across apps, window titles, URLs, and file paths, with date and memory-type filters.
+- Browser memories appear in the timeline, have a detailed view, and can be opened with the OS default browser.
+
+### Security
+- Only HTTP(S) URLs are accepted. Credentials and fragments are rejected/removed, and common authentication query parameters are redacted.
+- Browser databases are read through private temporary snapshots; cookie, login, autofill, payment, and preference stores are never opened.
+
+## [0.1.0]
 
 ### Features
 - Desktop app foundation for Windows and macOS (Tauri 2, Rust, React, TypeScript).
@@ -26,4 +40,4 @@ All notable changes to Recall are documented here. This project uses [semantic v
 - Logs never contain memory contents.
 
 ### Not yet available
-- Search, screenshots, browser history, AI answers, agent, and signed auto-updates.
+- Screenshots, AI answers, agent, and signed auto-updates.

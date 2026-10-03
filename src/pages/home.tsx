@@ -80,12 +80,12 @@ export function HomePage() {
             <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <div className="space-y-2">
               <p>
-                <span className="font-medium">Asking Recall isn't available in this version yet.</span>{" "}
-                Search arrives in the next update, followed by AI answers that run on your computer. Your
-                question wasn't sent anywhere.
+                <span className="font-medium">AI answers aren't available in this version yet.</span>{" "}
+                Keyword search is available now, including page titles and URLs. Your question wasn't sent
+                anywhere.
               </p>
-              <Button variant="link" className="h-auto p-0" onClick={() => navigate("memory")}>
-                Browse your timeline instead <ArrowRight />
+              <Button variant="link" className="h-auto p-0" onClick={() => navigate("search")}>
+                Search your memory instead <ArrowRight />
               </Button>
             </div>
           </div>

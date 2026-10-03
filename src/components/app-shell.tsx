@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const NAV: { page: Page; label: string; icon: typeof Home; soon?: boolean }[] = [
   { page: "home", label: "Home", icon: Home },
   { page: "memory", label: "Memory", icon: Clock3 },
-  { page: "search", label: "Search", icon: Search, soon: true },
+  { page: "search", label: "Search", icon: Search },
   { page: "agent", label: "Agent", icon: Bot, soon: true },
   { page: "settings", label: "Settings", icon: Settings },
 ];

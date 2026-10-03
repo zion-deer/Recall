@@ -96,6 +96,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             log::info!("Recall {} starting", env!("CARGO_PKG_VERSION"));
             let handle = app.handle().clone();
@@ -138,7 +139,9 @@ pub fn run() {
             commands::pause_recording,
             commands::resume_recording,
             commands::get_recorder_status,
+            commands::get_browser_statuses,
             commands::list_events,
+            commands::search_events,
             commands::get_event,
             commands::get_app_usage,
             commands::get_memory_stats,
@@ -153,6 +156,7 @@ pub fn run() {
             commands::request_permission,
             commands::open_data_folder,
             commands::open_log_folder,
+            commands::open_url,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Recall");

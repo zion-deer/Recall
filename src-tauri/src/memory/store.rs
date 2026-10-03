@@ -19,6 +19,42 @@ pub struct EventQuery {
     pub limit: Option<u32>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchQuery {
+    pub text: String,
+    pub start: Option<i64>,
+    pub end: Option<i64>,
+    pub kind: Option<String>,
+    pub limit: Option<u32>,
+}
+
+impl SearchQuery {
+    fn validate(&self) -> AppResult<()> {
+        if self.text.chars().count() > 500 {
+            return Err(AppError::invalid("Search is too long"));
+        }
+        if let (Some(start), Some(end)) = (self.start, self.end) {
+            if start > end {
+                return Err(AppError::invalid("Start time must be before end time"));
+            }
+        }
+        if let Some(kind) = &self.kind {
+            if super::EventKind::parse(kind).is_none() {
+                return Err(AppError::invalid("Unknown memory type"));
+            }
+        }
+        if let Some(limit) = self.limit {
+            if limit == 0 || limit > MAX_PAGE_SIZE {
+                return Err(AppError::invalid(format!(
+                    "Limit must be between 1 and {MAX_PAGE_SIZE}"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
 impl EventQuery {
     pub fn validate(&self) -> AppResult<()> {
         if let (Some(s), Some(e)) = (self.start, self.end) {
@@ -106,6 +142,69 @@ pub fn insert_event(db: &Database, e: &NewEvent) -> AppResult<i64> {
     Ok(conn.last_insert_rowid())
 }
 
+/// Inserts an event unless a database uniqueness rule identifies it as a
+/// duplicate. Browser collectors use this to make repeated scans idempotent.
+pub fn insert_event_if_new(db: &Database, e: &NewEvent) -> AppResult<Option<i64>> {
+    if e.ended_at < e.started_at {
+        return Err(AppError::invalid("Event ends before it starts"));
+    }
+    let conn = db.conn();
+    let changed = conn.execute(
+        "INSERT OR IGNORE INTO events
+         (kind, source, started_at, ended_at, app_name, app_id, window_title, url, file_path, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            e.kind.as_str(),
+            e.source,
+            e.started_at,
+            e.ended_at,
+            e.app_name,
+            e.app_id,
+            e.window_title,
+            e.url,
+            e.file_path,
+            now_ms()
+        ],
+    )?;
+    Ok((changed > 0).then(|| conn.last_insert_rowid()))
+}
+
+/// Inserts a browser visit, or extends the immediately preceding visit when
+/// the same page is recorded again within `merge_window_ms` (for example a
+/// refresh). Returns true when stored data changed.
+pub fn insert_or_merge_browser_visit(
+    db: &Database,
+    e: &NewEvent,
+    merge_window_ms: i64,
+) -> AppResult<bool> {
+    if e.kind != super::EventKind::BrowserActivity {
+        return Err(AppError::invalid("Expected a browser memory"));
+    }
+    let conn = db.conn();
+    let previous: Option<(i64, Option<String>, i64)> = conn
+        .query_row(
+            "SELECT id, url, ended_at FROM events
+             WHERE kind = 'browser_activity' AND source = ?1 AND app_id = ?2
+             ORDER BY started_at DESC, id DESC LIMIT 1",
+            params![e.source, e.app_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .optional()?;
+    if let Some((id, url, ended_at)) = previous {
+        if url == e.url && e.started_at >= ended_at && e.started_at - ended_at <= merge_window_ms {
+            let changed = conn.execute(
+                "UPDATE events SET ended_at = ?2,
+                    window_title = COALESCE(?3, window_title)
+                 WHERE id = ?1 AND ended_at < ?2",
+                params![id, e.started_at, e.window_title],
+            )?;
+            return Ok(changed > 0);
+        }
+    }
+    drop(conn);
+    Ok(insert_event_if_new(db, e)?.is_some())
+}
+
 /// Extends an open session. Returns false if the event no longer exists
 /// (for example, the user deleted it while it was still in progress).
 pub fn set_event_end(db: &Database, id: i64, ended_at: i64) -> AppResult<bool> {
@@ -145,6 +244,41 @@ pub fn list_events(db: &Database, q: &EventQuery) -> AppResult<Vec<MemoryEvent>>
         map_event,
     )?;
     Ok(rows.collect::<Result<_, _>>()?)
+}
+
+/// Full-text search over app names, titles, URLs, and file paths.
+pub fn search_events(db: &Database, q: &SearchQuery) -> AppResult<Vec<MemoryEvent>> {
+    q.validate()?;
+    let match_query = fts_query(&q.text);
+    if match_query.is_empty() {
+        return Ok(Vec::new());
+    }
+    let conn = db.conn();
+    let mut stmt = conn.prepare_cached(&format!(
+        "SELECT e.{}
+         FROM events_fts f JOIN events e ON e.id = f.rowid
+         WHERE events_fts MATCH ?1
+           AND (?2 IS NULL OR e.ended_at >= ?2)
+           AND (?3 IS NULL OR e.started_at < ?3)
+           AND (?4 IS NULL OR e.kind = ?4)
+         ORDER BY bm25(events_fts), e.started_at DESC
+         LIMIT ?5",
+        EVENT_COLUMNS.replace(", ", ", e.")
+    ))?;
+    let rows = stmt.query_map(
+        params![match_query, q.start, q.end, q.kind, q.limit.unwrap_or(100)],
+        map_event,
+    )?;
+    Ok(rows.collect::<Result<_, _>>()?)
+}
+
+fn fts_query(text: &str) -> String {
+    text.split(|c: char| !c.is_alphanumeric())
+        .filter(|token| !token.is_empty())
+        .take(20)
+        .map(|token| format!("\"{}\"*", token.replace('"', "\"\"")))
+        .collect::<Vec<_>>()
+        .join(" AND ")
 }
 
 /// Per-application time totals for events overlapping `[start, end)`,
@@ -421,5 +555,92 @@ mod tests {
             get_event(&db, id).unwrap().unwrap().window_title.as_deref(),
             Some(title)
         );
+    }
+
+    #[test]
+    fn searches_browser_titles_urls_and_dates() {
+        let db = Database::open_in_memory().unwrap();
+        insert_event(
+            &db,
+            &NewEvent {
+                kind: crate::memory::EventKind::BrowserActivity,
+                source: "chrome",
+                started_at: 5_000,
+                ended_at: 5_000,
+                app_name: Some("Google Chrome".into()),
+                app_id: Some("profile".into()),
+                window_title: Some("SQLite FTS5 Documentation".into()),
+                url: Some("https://sqlite.org/fts5.html".into()),
+                file_path: None,
+            },
+        )
+        .unwrap();
+        insert_event(&db, &sample("Code", "sqlite_notes.rs", 10_000, 12_000)).unwrap();
+
+        let browser = search_events(
+            &db,
+            &SearchQuery {
+                text: "SQLite FTS".into(),
+                start: Some(0),
+                end: Some(9_000),
+                kind: Some("browser_activity".into()),
+                limit: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(browser.len(), 1);
+        assert_eq!(
+            browser[0].url.as_deref(),
+            Some("https://sqlite.org/fts5.html")
+        );
+
+        assert_eq!(
+            search_events(
+                &db,
+                &SearchQuery {
+                    text: "sqlite.org".into(),
+                    start: None,
+                    end: None,
+                    kind: None,
+                    limit: Some(10),
+                },
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn search_index_tracks_deletion() {
+        let db = db_with_events();
+        assert_eq!(
+            search_events(
+                &db,
+                &SearchQuery {
+                    text: "Rust".into(),
+                    start: None,
+                    end: None,
+                    kind: None,
+                    limit: None,
+                },
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+        delete_all(&db).unwrap();
+        assert!(search_events(
+            &db,
+            &SearchQuery {
+                text: "Rust".into(),
+                start: None,
+                end: None,
+                kind: None,
+                limit: None,
+            },
+        )
+        .unwrap()
+        .is_empty());
     }
 }

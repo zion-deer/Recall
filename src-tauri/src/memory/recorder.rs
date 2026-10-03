@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 
+use super::browser::{BrowserCollector, BrowserStatus};
 use super::privacy::{Candidate, PrivacyFilter};
 use super::{store, EventKind, NewEvent};
 use crate::error::AppResult;
@@ -64,6 +65,7 @@ impl RecorderStatus {
 pub struct SharedConfig {
     pub settings: RwLock<Settings>,
     pub filter: RwLock<PrivacyFilter>,
+    pub browser_statuses: RwLock<Vec<BrowserStatus>>,
 }
 
 pub trait Notifier: Send + 'static {
@@ -167,7 +169,7 @@ impl RecorderCore {
     ) -> AppResult<(RecorderStatus, bool)> {
         use RecorderState::*;
 
-        if !settings.recording_enabled || !settings.app_activity_enabled {
+        if !settings.recording_enabled {
             return Ok((RecorderStatus::new(Off), self.tracker.close(db, now)?));
         }
         if settings.is_paused(now) {
@@ -177,6 +179,9 @@ impl RecorderCore {
                 ..RecorderStatus::new(Paused)
             };
             return Ok((status, changed));
+        }
+        if !settings.app_activity_enabled {
+            return Ok((RecorderStatus::new(Recording), self.tracker.close(db, now)?));
         }
         if let Some(idle) = platform.idle_seconds() {
             if idle >= u64::from(settings.idle_threshold_secs) {
@@ -221,7 +226,6 @@ impl RecorderCore {
         if filter.excludes(&candidate) {
             return Ok((RecorderStatus::new(Excluded), self.tracker.close(db, now)?));
         }
-
         let key = SessionKey {
             app_name: window.app_name.clone(),
             app_id: window.app_id,
@@ -309,6 +313,7 @@ fn run(
 ) {
     log::info!("recorder started");
     let mut core = RecorderCore::new(u64::from(std::process::id()));
+    let mut browsers = BrowserCollector::default();
     let mut last_sweep = 0i64;
 
     loop {
@@ -343,6 +348,19 @@ fn run(
                 }
             }
             Err(e) => log::error!("recorder sample failed: {e}"),
+        }
+
+        match browsers.scan(&db, &settings, &filter, now, false) {
+            Ok(n) => {
+                if n > 0 {
+                    changed = true;
+                }
+                *config
+                    .browser_statuses
+                    .write()
+                    .unwrap_or_else(|e| e.into_inner()) = browsers.statuses();
+            }
+            Err(e) => log::warn!("browser history scan failed: {e}"),
         }
 
         if now - last_sweep >= RETENTION_SWEEP_MS {

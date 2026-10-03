@@ -4,6 +4,7 @@
 //! Collectors are independent. V0.1 ships the application activity collector
 //! ([`recorder`]); browser history and screenshots plug into the same event model.
 
+pub mod browser;
 pub mod export;
 pub mod privacy;
 pub mod recorder;
@@ -15,18 +16,21 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum EventKind {
     AppActivity,
+    BrowserActivity,
 }
 
 impl EventKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::AppActivity => "app_activity",
+            Self::BrowserActivity => "browser_activity",
         }
     }
 
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "app_activity" => Some(Self::AppActivity),
+            "browser_activity" => Some(Self::BrowserActivity),
             _ => None,
         }
     }

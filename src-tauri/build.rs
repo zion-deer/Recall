@@ -7,7 +7,9 @@ const COMMANDS: &[&str] = &[
     "pause_recording",
     "resume_recording",
     "get_recorder_status",
+    "get_browser_statuses",
     "list_events",
+    "search_events",
     "get_event",
     "get_app_usage",
     "get_memory_stats",
@@ -22,6 +24,7 @@ const COMMANDS: &[&str] = &[
     "request_permission",
     "open_data_folder",
     "open_log_folder",
+    "open_url",
 ];
 
 fn main() {

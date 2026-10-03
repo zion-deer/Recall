@@ -7,10 +7,11 @@ import { NavigationContext, type Page, type SettingsSection } from "@/hooks/use-
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useAppliedTheme } from "@/hooks/use-theme";
 import { hasBackend } from "@/lib/api";
-import { AgentPage, SearchPage } from "@/pages/coming-soon";
+import { AgentPage } from "@/pages/coming-soon";
 import { HomePage } from "@/pages/home";
 import { MemoryPage } from "@/pages/memory";
 import { Onboarding } from "@/pages/onboarding";
+import { SearchPage } from "@/pages/search";
 import { SettingsPage } from "@/pages/settings";
 
 const PAGE_ORDER: Page[] = ["home", "memory", "search", "agent", "settings"];

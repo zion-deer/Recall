@@ -6,7 +6,7 @@ Recall is a private, local-first memory for your computer. It quietly remembers 
 
 Recall is proprietary software, free for users. This repository is private.
 
-## Status — v0.1.0 (in development)
+## Status — v0.1.1 (in development)
 
 | Area | State |
 | --- | --- |
@@ -17,8 +17,9 @@ Recall is proprietary software, free for users. This repository is private.
 | Delete one memory, a time range, a day, or everything | Working |
 | Retention (7 days → forever), JSON export | Working |
 | First-run onboarding with staged, optional permissions | Working |
-| Search (SQLite FTS5) | Next milestone |
-| Screenshots, browser history | Planned |
+| Browser memory: Chrome, Edge, Firefox, Safari (macOS) | Working |
+| Local full-text search (SQLite FTS5) | Working |
+| Screenshots | Planned |
 | Local AI answers, "Continue where I left off" | Planned |
 | Agent with permissioned tools | Planned |
 | Signed auto-updates | Planned (required before the v0.1 public release) |

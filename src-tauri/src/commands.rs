@@ -5,10 +5,11 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::error::{AppError, AppResult};
+use crate::memory::browser::{sanitize_url, BrowserCollector, BrowserStatus};
 use crate::memory::export::{self, ExportResult};
 use crate::memory::privacy::{self, Exclusion, ExclusionKind};
 use crate::memory::recorder::RecorderStatus;
-use crate::memory::store::{self, AppUsage, EventQuery, MemoryStats};
+use crate::memory::store::{self, AppUsage, EventQuery, MemoryStats, SearchQuery};
 use crate::memory::MemoryEvent;
 use crate::platform::PermissionInfo;
 use crate::settings::{Settings, PAUSE_INDEFINITELY};
@@ -115,8 +116,31 @@ pub fn get_recorder_status(state: State<'_, AppState>) -> RecorderStatus {
 }
 
 #[tauri::command]
+pub fn get_browser_statuses(state: State<'_, AppState>) -> Vec<BrowserStatus> {
+    let statuses = state
+        .config
+        .browser_statuses
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    if statuses.is_empty() {
+        BrowserCollector::default().statuses()
+    } else {
+        statuses
+    }
+}
+
+#[tauri::command]
 pub fn list_events(state: State<'_, AppState>, query: EventQuery) -> AppResult<Vec<MemoryEvent>> {
     store::list_events(&state.db, &query)
+}
+
+#[tauri::command]
+pub fn search_events(
+    state: State<'_, AppState>,
+    query: SearchQuery,
+) -> AppResult<Vec<MemoryEvent>> {
+    store::search_events(&state.db, &query)
 }
 
 #[tauri::command]
@@ -229,6 +253,16 @@ pub fn open_data_folder(state: State<'_, AppState>) -> AppResult<()> {
 #[tauri::command]
 pub fn open_log_folder(state: State<'_, AppState>) -> AppResult<()> {
     state.platform.reveal_folder(&state.log_dir)
+}
+
+#[tauri::command]
+pub fn open_url(app: AppHandle, url: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let safe =
+        sanitize_url(&url).ok_or_else(|| AppError::invalid("That URL is not safe to open"))?;
+    app.opener()
+        .open_url(safe, None::<&str>)
+        .map_err(|e| AppError::Internal(format!("Could not open the website: {e}")))
 }
 
 #[cfg(test)]

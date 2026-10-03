@@ -6,6 +6,9 @@ use crate::error::{AppError, AppResult};
 const SCREEN_RECORDING: &str = "screen_recording";
 const SCREEN_RECORDING_SETTINGS: &str =
     "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
+const FULL_DISK_ACCESS: &str = "full_disk_access";
+const FULL_DISK_ACCESS_SETTINGS: &str =
+    "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles";
 
 #[link(name = "CoreGraphics", kind = "framework")]
 extern "C" {
@@ -44,15 +47,31 @@ impl PlatformAdapter for MacAdapter {
     fn permissions(&self) -> Vec<PermissionInfo> {
         // SAFETY: no arguments; available on macOS 10.15+.
         let granted = unsafe { CGPreflightScreenCaptureAccess() };
-        vec![PermissionInfo {
-            id: SCREEN_RECORDING,
-            name: "Screen Recording",
-            reason: "macOS only shares window titles (like document and page names) with apps that have this permission. Without it, Recall remembers which apps you used but not what was in them.",
-            granted: Some(granted),
-        }]
+        vec![
+            PermissionInfo {
+                id: SCREEN_RECORDING,
+                name: "Screen Recording",
+                reason: "macOS only shares window titles (like document and page names) with apps that have this permission. Without it, Recall remembers which apps you used but not what was in them.",
+                granted: Some(granted),
+            },
+            PermissionInfo {
+                id: FULL_DISK_ACCESS,
+                name: "Full Disk Access",
+                reason: "Safari protects its local history with this macOS permission. It is needed only to remember Safari pages; Chrome, Edge, Firefox, and app activity work without it.",
+                // macOS has no reliable public API for querying this permission.
+                granted: None,
+            },
+        ]
     }
 
     fn request_permission(&self, id: &str) -> AppResult<()> {
+        if id == FULL_DISK_ACCESS {
+            std::process::Command::new("open")
+                .arg(FULL_DISK_ACCESS_SETTINGS)
+                .spawn()
+                .map_err(|e| AppError::Internal(format!("Could not open System Settings: {e}")))?;
+            return Ok(());
+        }
         if id != SCREEN_RECORDING {
             return Err(AppError::invalid(format!("Unknown permission: {id}")));
         }

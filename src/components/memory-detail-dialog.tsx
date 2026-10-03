@@ -1,4 +1,4 @@
-import { EyeOff, Trash2 } from "lucide-react";
+import { ExternalLink, EyeOff, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppAvatar } from "@/components/app-avatar";
@@ -15,7 +15,10 @@ import { notifyError } from "@/hooks/use-recall";
 import { api, type MemoryEvent } from "@/lib/api";
 import { formatDateTime, formatDuration } from "@/lib/format";
 
-const KIND_LABELS: Record<string, string> = { app_activity: "App activity" };
+const KIND_LABELS: Record<string, string> = {
+  app_activity: "App activity",
+  browser_activity: "Browser activity",
+};
 
 export function MemoryDetailDialog({
   event,
@@ -56,6 +59,24 @@ export function MemoryDetailDialog({
     }
   }
 
+  async function excludeWebsite() {
+    if (!event?.url) return;
+    const host = websiteHost(event.url);
+    if (!host) return;
+    setBusy(true);
+    try {
+      const { removedMemories } = await api.addExclusion("website", host);
+      toast.success(`Recall will no longer record ${host}`, {
+        description: `${removedMemories} existing ${removedMemories === 1 ? "memory was" : "memories were"} deleted.`,
+      });
+      onClose();
+    } catch (e) {
+      notifyError(e, "Couldn't exclude this website");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Dialog open={event !== null} onOpenChange={(open) => !open && onClose()}>
       {event && (
@@ -71,26 +92,46 @@ export function MemoryDetailDialog({
           </DialogHeader>
 
           <dl className="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-2.5 text-sm">
-            <Field label="Window">{event.windowTitle ?? <Muted>Not recorded</Muted>}</Field>
+            <Field label={event.kind === "browser_activity" ? "Page title" : "Window"}>
+              {event.windowTitle ?? <Muted>Not recorded</Muted>}
+            </Field>
             {event.url && <Field label="Website">{event.url}</Field>}
             {event.filePath && <Field label="File">{event.filePath}</Field>}
-            <Field label="Started">{formatDateTime(event.startedAt)}</Field>
-            <Field label="Ended">{formatDateTime(event.endedAt)}</Field>
-            <Field label="Duration">{formatDuration(event.endedAt - event.startedAt)}</Field>
-            {event.appId && (
+            <Field label={event.kind === "browser_activity" ? "Visited" : "Started"}>
+              {formatDateTime(event.startedAt)}
+            </Field>
+            {event.kind !== "browser_activity" && (
+              <>
+                <Field label="Ended">{formatDateTime(event.endedAt)}</Field>
+                <Field label="Duration">{formatDuration(event.endedAt - event.startedAt)}</Field>
+              </>
+            )}
+            {event.appId && event.kind !== "browser_activity" && (
               <Field label="Application">
                 <span className="font-mono text-xs">{event.appId}</span>
               </Field>
             )}
           </dl>
 
-          <DialogFooter className="gap-2 sm:justify-between">
-            {event.appName ? (
+          <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+            {event.kind === "browser_activity" && event.url ? (
+              <Button variant="ghost" onClick={excludeWebsite} disabled={busy}>
+                <EyeOff /> Never record {truncate(websiteHost(event.url) ?? "this site", 22)}
+              </Button>
+            ) : event.appName ? (
               <Button variant="ghost" onClick={excludeApp} disabled={busy}>
                 <EyeOff /> Never record {truncate(event.appName, 22)}
               </Button>
             ) : (
               <span />
+            )}
+            {event.url && (
+              <Button
+                variant="outline"
+                onClick={() => api.openUrl(event.url!).catch((e) => notifyError(e, "Couldn't open the website"))}
+              >
+                <ExternalLink /> Open in browser
+              </Button>
             )}
             <Button variant="destructive" onClick={remove} disabled={busy}>
               <Trash2 /> Delete memory
@@ -100,6 +141,14 @@ export function MemoryDetailDialog({
       )}
     </Dialog>
   );
+}
+
+function websiteHost(value: string): string | null {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

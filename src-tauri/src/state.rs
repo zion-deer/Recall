@@ -22,6 +22,7 @@ impl AppState {
         Ok(SharedConfig {
             settings: RwLock::new(settings::load(db)?),
             filter: RwLock::new(PrivacyFilter::new(&privacy::list(db)?)),
+            browser_statuses: RwLock::new(Vec::new()),
         })
     }
 

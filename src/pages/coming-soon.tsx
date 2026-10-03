@@ -1,4 +1,4 @@
-import { Bot, Check, Search } from "lucide-react";
+import { Bot, Check } from "lucide-react";
 import { PageHeader } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { useNavigation } from "@/hooks/use-navigation";
@@ -9,7 +9,7 @@ function Planned({
   summary,
   points,
 }: {
-  icon: typeof Search;
+  icon: typeof Bot;
   title: string;
   summary: string;
   points: string[];
@@ -39,22 +39,6 @@ function Planned({
         </Button>
       </div>
     </div>
-  );
-}
-
-export function SearchPage() {
-  return (
-    <Planned
-      icon={Search}
-      title="Search"
-      summary="Search is the next thing we're building. You'll be able to type a few words and instantly find what you saw or worked on."
-      points={[
-        "Full-text search across app names, window titles, pages, and files",
-        "Filter results by date, app, website, and memory type",
-        "Jump from a result straight to that moment in your timeline",
-        "Runs entirely on your computer and works offline",
-      ]}
-    />
   );
 }
 

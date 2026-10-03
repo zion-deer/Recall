@@ -15,6 +15,7 @@ export function MemoryRow({
   live?: boolean;
 }) {
   const title = event.windowTitle ?? event.url ?? event.filePath;
+  const website = event.kind === "browser_activity" ? displayHost(event.url) : null;
   return (
     <button
       type="button"
@@ -37,7 +38,9 @@ export function MemoryRow({
         </span>
       </span>
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {live ? (
+        {website ? (
+          website
+        ) : live ? (
           <span className="inline-flex items-center gap-1 text-recording">
             <span className="size-1.5 rounded-full bg-recording" aria-hidden />
             Now
@@ -48,4 +51,13 @@ export function MemoryRow({
       </span>
     </button>
   );
+}
+
+function displayHost(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
