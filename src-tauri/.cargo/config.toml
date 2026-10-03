@@ -1,0 +1,4 @@
+[env]
+# llama.cpp turns on its Mac GPU backend by default. That backend fails to
+# link on GitHub's macOS runners. Recall runs this small model on CPU.
+GGML_METAL = "OFF"
