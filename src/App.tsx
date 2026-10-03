@@ -1,4 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { AppShell, Logo } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -6,15 +7,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NavigationContext, type Page, type SettingsSection } from "@/hooks/use-navigation";
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useAppliedTheme } from "@/hooks/use-theme";
-import { hasBackend } from "@/lib/api";
-import { AgentPage } from "@/pages/coming-soon";
+import { api, hasBackend, toRecallError, type UpdateOffer } from "@/lib/api";
+import { AskPage } from "@/pages/ask";
 import { HomePage } from "@/pages/home";
 import { MemoryPage } from "@/pages/memory";
 import { Onboarding } from "@/pages/onboarding";
 import { SearchPage } from "@/pages/search";
 import { SettingsPage } from "@/pages/settings";
 
-const PAGE_ORDER: Page[] = ["home", "memory", "search", "agent", "settings"];
+const PAGE_ORDER: Page[] = ["home", "memory", "search", "ask", "settings"];
 
 function Recall() {
   const { settings } = useRecall();
@@ -44,17 +45,46 @@ function Recall() {
     return () => window.removeEventListener("keydown", onKey);
   }, [navigate]);
 
+  const [update, setUpdate] = useState<UpdateOffer | null>(null);
+  const [updating, setUpdating] = useState(false);
+  useEffect(() => {
+    const subscription = listen<UpdateOffer>("update:available", (event) => setUpdate(event.payload));
+    return () => {
+      subscription.then((unlisten) => unlisten());
+    };
+  }, []);
   const nav = useMemo(() => ({ page, settingsSection, navigate }), [page, settingsSection, navigate]);
 
   return (
     <>
       {settings.onboardingCompleted ? (
         <NavigationContext.Provider value={nav}>
+          {update && (
+            <div className="flex flex-wrap items-center gap-3 border-b bg-brand-soft px-4 py-2 text-sm" role="status">
+              <p className="flex-1">
+                Recall {update.version} is available. You're using {update.currentVersion}.
+              </p>
+              <Button size="sm" variant="ghost" onClick={() => setUpdate(null)}>Later</Button>
+              <Button
+                size="sm"
+                disabled={updating}
+                onClick={() => {
+                  setUpdating(true);
+                  api.installUpdate().catch((error) => {
+                    setUpdating(false);
+                    window.alert(toRecallError(error).message);
+                  });
+                }}
+              >
+                {updating ? "Updating…" : "Update now"}
+              </Button>
+            </div>
+          )}
           <AppShell>
             {page === "home" && <HomePage />}
             {page === "memory" && <MemoryPage />}
             {page === "search" && <SearchPage />}
-            {page === "agent" && <AgentPage />}
+            {page === "ask" && <AskPage />}
             {page === "settings" && <SettingsPage />}
           </AppShell>
         </NavigationContext.Provider>

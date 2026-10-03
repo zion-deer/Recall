@@ -86,6 +86,12 @@ One SQLite database: `<app data dir>/recall.db` (`%APPDATA%\com.recallapp.deskto
 
 It never opens cookie, login, autofill, payment, or preference databases. Browser private modes do not persist visits to the normal history database.
 
+### Screenshots and local AI
+
+Screenshots are another `events` row (`kind = screenshot`) plus a JPEG under `<data>/screenshots`. They are off by default. Deletion removes the file only when its path is a JPEG directly inside that directory.
+
+Ask Recall retrieves at most 12 relevant memories, builds a short context, and gives that context to Llama 3.2 1B Instruct. The GGUF is downloaded on request to `<data>/models` and checked against a pinned SHA-256. The model runtime is llama.cpp through `llama-cpp-2`, loaded only while answering. If retrieval finds nothing, Recall returns a fixed insufficient-information response and does not ask the model to invent one.
+
 ### Migrations
 
 `storage/migrations.rs` holds an append-only list tracked with `PRAGMA user_version`.

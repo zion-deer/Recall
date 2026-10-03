@@ -19,7 +19,9 @@ Recall is proprietary software, free for users. This repository is private.
 | First-run onboarding with staged, optional permissions | Working |
 | Browser memory: Chrome, Edge, Firefox, Safari (macOS) | Working |
 | Local full-text search (SQLite FTS5) | Working |
-| Screenshots | Planned |
+| Optional screenshots | Working |
+| Local Llama 3.2 1B answers grounded in retrieved memories | Working |
+| Signed update checks | Configured |
 | Local AI answers, "Continue where I left off" | Planned |
 | Agent with permissioned tools | Planned |
 | Signed auto-updates | Planned (required before the v0.1 public release) |

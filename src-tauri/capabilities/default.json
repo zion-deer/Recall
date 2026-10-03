@@ -24,6 +24,7 @@
     "allow-get-memory-stats",
     "allow-delete-event",
     "allow-delete-events-in-range",
+    "allow-delete-screenshots",
     "allow-delete-all-memories",
     "allow-list-exclusions",
     "allow-add-exclusion",
@@ -33,6 +34,14 @@
     "allow-request-permission",
     "allow-open-data-folder",
     "allow-open-log-folder",
-    "allow-open-url"
+    "allow-open-url",
+    "allow-open-path",
+    "allow-get-ai-status",
+    "allow-download-ai-model",
+    "allow-cancel-ai-download",
+    "allow-remove-ai-model",
+    "allow-ask-recall",
+    "allow-check-for-update",
+    "allow-install-update"
   ]
 }

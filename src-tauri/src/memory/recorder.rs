@@ -16,6 +16,7 @@ use serde::Serialize;
 
 use super::browser::{BrowserCollector, BrowserStatus};
 use super::privacy::{Candidate, PrivacyFilter};
+use super::screenshots::ScreenshotCollector;
 use super::{store, EventKind, NewEvent};
 use crate::error::AppResult;
 use crate::platform::PlatformAdapter;
@@ -269,6 +270,7 @@ impl RecorderHandle {
         db: Arc<Database>,
         config: Arc<SharedConfig>,
         platform: Arc<dyn PlatformAdapter>,
+        screenshots_dir: std::path::PathBuf,
         notifier: impl Notifier,
     ) -> Self {
         let (tx, rx) = mpsc::channel();
@@ -276,7 +278,17 @@ impl RecorderHandle {
         let thread_status = status.clone();
         let thread = std::thread::Builder::new()
             .name("recall-recorder".into())
-            .spawn(move || run(db, config, platform, notifier, rx, thread_status))
+            .spawn(move || {
+                run(
+                    db,
+                    config,
+                    platform,
+                    screenshots_dir,
+                    notifier,
+                    rx,
+                    thread_status,
+                )
+            })
             .expect("failed to start recorder thread");
         Self {
             tx,
@@ -313,6 +325,7 @@ fn run(
     db: Arc<Database>,
     config: Arc<SharedConfig>,
     platform: Arc<dyn PlatformAdapter>,
+    screenshots_dir: std::path::PathBuf,
     notifier: impl Notifier,
     rx: Receiver<Command>,
     status: Arc<Mutex<RecorderStatus>>,
@@ -320,6 +333,7 @@ fn run(
     log::info!("recorder started");
     let mut core = RecorderCore::new(u64::from(std::process::id()));
     let mut browsers = BrowserCollector::default();
+    let mut screenshots = ScreenshotCollector::new(screenshots_dir, u64::from(std::process::id()));
     let mut last_sweep = 0i64;
 
     loop {
@@ -369,8 +383,26 @@ fn run(
             Err(e) => log::warn!("browser history scan failed: {e}"),
         }
 
+        match screenshots.maybe_capture(&db, &settings, &filter, platform.as_ref(), now) {
+            Ok(true) => changed = true,
+            Ok(false) => {}
+            Err(e) => log::warn!("screenshot capture failed: {e}"),
+        }
+
         if now - last_sweep >= RETENTION_SWEEP_MS {
             last_sweep = now;
+            if let Some(days) = settings.screenshot_retention_days {
+                match store::purge_screenshots_older_than(&db, now - i64::from(days) * DAY_MS) {
+                    Ok(0) => {}
+                    Ok(n) => {
+                        log::info!(
+                            "screenshot retention removed {n} images older than {days} days"
+                        );
+                        changed = true;
+                    }
+                    Err(e) => log::error!("screenshot retention failed: {e}"),
+                }
+            }
             if let Some(days) = settings.retention_days {
                 match store::purge_older_than(&db, now - i64::from(days) * DAY_MS) {
                     Ok(0) => {}

@@ -269,7 +269,29 @@ pub fn search_events(db: &Database, q: &SearchQuery) -> AppResult<Vec<MemoryEven
         params![match_query, q.start, q.end, q.kind, q.limit.unwrap_or(100)],
         map_event,
     )?;
-    Ok(rows.collect::<Result<_, _>>()?)
+    let mut events = rows.collect::<Result<Vec<_>, _>>()?;
+    rerank(&q.text, &mut events);
+    Ok(events)
+}
+
+/// Exact title and URL matches stay ahead of the remaining FTS order.
+fn rerank(query: &str, events: &mut [MemoryEvent]) {
+    let needle = query.trim().to_lowercase();
+    if needle.is_empty() {
+        return;
+    }
+    events.sort_by_key(|event| {
+        let title = event.window_title.as_deref().unwrap_or("").to_lowercase();
+        let url = event.url.as_deref().unwrap_or("").to_lowercase();
+        let app = event.app_name.as_deref().unwrap_or("").to_lowercase();
+        if title == needle || url.contains(&needle) {
+            0
+        } else if title.contains(&needle) || app == needle {
+            1
+        } else {
+            2
+        }
+    });
 }
 
 fn fts_query(text: &str) -> String {
@@ -308,10 +330,15 @@ pub fn app_usage(db: &Database, start: i64, end: i64) -> AppResult<Vec<AppUsage>
 }
 
 pub fn delete_event(db: &Database, id: i64) -> AppResult<bool> {
-    Ok(db
+    let paths = screenshot_paths(db, "id = ?1", params![id])?;
+    let deleted = db
         .conn()
         .execute("DELETE FROM events WHERE id = ?1", [id])?
-        > 0)
+        > 0;
+    if deleted {
+        remove_screenshot_files(&paths);
+    }
+    Ok(deleted)
 }
 
 /// Deletes every event that overlaps `[start, end)`.
@@ -319,13 +346,24 @@ pub fn delete_range(db: &Database, start: i64, end: i64) -> AppResult<usize> {
     if start > end {
         return Err(AppError::invalid("Start time must be before end time"));
     }
-    Ok(db.conn().execute(
+    let paths = screenshot_paths(
+        db,
+        "ended_at >= ?1 AND started_at < ?2",
+        params![start, end],
+    )?;
+    let deleted = db.conn().execute(
         "DELETE FROM events WHERE ended_at >= ?1 AND started_at < ?2",
         params![start, end],
-    )?)
+    )?;
+    remove_screenshot_files(&paths);
+    Ok(deleted)
 }
 
 pub fn delete_ids(db: &Database, ids: &[i64]) -> AppResult<usize> {
+    let mut paths = Vec::new();
+    for id in ids {
+        paths.extend(screenshot_paths(db, "id = ?1", params![id])?);
+    }
     let mut conn = db.conn();
     let tx = conn.transaction()?;
     let mut n = 0;
@@ -336,19 +374,64 @@ pub fn delete_ids(db: &Database, ids: &[i64]) -> AppResult<usize> {
         }
     }
     tx.commit()?;
+    remove_screenshot_files(&paths);
     Ok(n)
 }
 
 pub fn delete_all(db: &Database) -> AppResult<usize> {
+    let paths = screenshot_paths(db, "1 = 1", ())?;
     let n = db.conn().execute("DELETE FROM events", [])?;
+    remove_screenshot_files(&paths);
     db.compact()?;
     Ok(n)
 }
 
 pub fn purge_older_than(db: &Database, cutoff: i64) -> AppResult<usize> {
-    Ok(db
+    let paths = screenshot_paths(db, "ended_at < ?1 AND kind <> 'screenshot'", [cutoff])?;
+    let n = db.conn().execute(
+        "DELETE FROM events WHERE ended_at < ?1 AND kind <> 'screenshot'",
+        [cutoff],
+    )?;
+    remove_screenshot_files(&paths);
+    Ok(n)
+}
+
+pub fn delete_screenshots(db: &Database) -> AppResult<usize> {
+    let paths = screenshot_paths(db, "1 = 1", ())?;
+    let n = db
         .conn()
-        .execute("DELETE FROM events WHERE ended_at < ?1", [cutoff])?)
+        .execute("DELETE FROM events WHERE kind = 'screenshot'", [])?;
+    remove_screenshot_files(&paths);
+    Ok(n)
+}
+
+pub fn purge_screenshots_older_than(db: &Database, cutoff: i64) -> AppResult<usize> {
+    let paths = screenshot_paths(db, "kind = 'screenshot' AND ended_at < ?1", [cutoff])?;
+    let n = db.conn().execute(
+        "DELETE FROM events WHERE kind = 'screenshot' AND ended_at < ?1",
+        [cutoff],
+    )?;
+    remove_screenshot_files(&paths);
+    Ok(n)
+}
+
+fn screenshot_paths(
+    db: &Database,
+    predicate: &str,
+    values: impl rusqlite::Params,
+) -> AppResult<Vec<String>> {
+    let conn = db.conn();
+    let mut stmt = conn.prepare(&format!(
+        "SELECT file_path FROM events WHERE kind = 'screenshot' AND file_path IS NOT NULL AND {predicate}"
+    ))?;
+    let rows = stmt.query_map(values, |row| row.get(0))?;
+    Ok(rows.collect::<Result<_, _>>()?)
+}
+
+fn remove_screenshot_files(paths: &[String]) {
+    for path in paths {
+        super::screenshots::remove_stored_file(path);
+    }
 }
 
 pub fn stats(db: &Database) -> AppResult<MemoryStats> {

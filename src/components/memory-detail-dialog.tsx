@@ -1,4 +1,5 @@
-import { ExternalLink, EyeOff, Trash2 } from "lucide-react";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { ExternalLink, EyeOff, FolderOpen, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppAvatar } from "@/components/app-avatar";
@@ -91,6 +92,13 @@ export function MemoryDetailDialog({
             </div>
           </DialogHeader>
 
+          {event.kind === "screenshot" && event.filePath && (
+            <img
+              src={convertFileSrc(event.filePath)}
+              alt={event.windowTitle ?? "Screenshot"}
+              className="max-h-80 w-full rounded-lg object-contain"
+            />
+          )}
           <dl className="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-2.5 text-sm">
             <Field label={event.kind === "browser_activity" ? "Page title" : "Window"}>
               {event.windowTitle ?? <Muted>Not recorded</Muted>}
@@ -131,6 +139,14 @@ export function MemoryDetailDialog({
                 onClick={() => api.openUrl(event.url!).catch((e) => notifyError(e, "Couldn't open the website"))}
               >
                 <ExternalLink /> Open in browser
+              </Button>
+            )}
+            {event.filePath && event.kind !== "screenshot" && (
+              <Button
+                variant="outline"
+                onClick={() => api.openPath(event.filePath!).catch((e) => notifyError(e, "Couldn't open the file"))}
+              >
+                <FolderOpen /> Open file
               </Button>
             )}
             <Button variant="destructive" onClick={remove} disabled={busy}>

@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "tauri": "tauri",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "release:patch": "node scripts/release.mjs patch",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

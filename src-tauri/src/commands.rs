@@ -4,6 +4,7 @@
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
+use crate::ai::{self, llama::AiStatus, AskResponse};
 use crate::error::{AppError, AppResult};
 use crate::memory::browser::{sanitize_url, BrowserCollector, BrowserStatus};
 use crate::memory::export::{self, ExportResult};
@@ -15,6 +16,7 @@ use crate::platform::PermissionInfo;
 use crate::settings::{Settings, PAUSE_INDEFINITELY};
 use crate::state::AppState;
 use crate::storage::{migrations, now_ms};
+use crate::updates::{self, UpdateOffer};
 
 pub const EVENT_MEMORY_CHANGED: &str = "memory:changed";
 pub const EVENT_SETTINGS_CHANGED: &str = "settings:changed";
@@ -182,6 +184,14 @@ pub fn delete_events_in_range(
 }
 
 #[tauri::command]
+pub fn delete_screenshots(app: AppHandle, state: State<'_, AppState>) -> AppResult<usize> {
+    let n = store::delete_screenshots(&state.db)?;
+    state.recorder.reset();
+    memory_changed(&app);
+    Ok(n)
+}
+
+#[tauri::command]
 pub fn delete_all_memories(app: AppHandle, state: State<'_, AppState>) -> AppResult<usize> {
     state.recorder.reset();
     let n = store::delete_all(&state.db)?;
@@ -253,6 +263,75 @@ pub fn open_data_folder(state: State<'_, AppState>) -> AppResult<()> {
 #[tauri::command]
 pub fn open_log_folder(state: State<'_, AppState>) -> AppResult<()> {
     state.platform.reveal_folder(&state.log_dir)
+}
+
+#[tauri::command]
+pub fn open_path(path: String) -> AppResult<()> {
+    use tauri_plugin_opener::open_path;
+    let path = std::path::PathBuf::from(&path);
+    if !path.is_absolute()
+        || path
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(AppError::invalid("That file path is not safe to open"));
+    }
+    if !path.is_file() {
+        return Err(AppError::NotFound(
+            "That file is no longer available".into(),
+        ));
+    }
+    open_path(path, None::<&str>)
+        .map_err(|e| AppError::Internal(format!("Could not open the file: {e}")))
+}
+
+#[tauri::command]
+pub fn get_ai_status(state: State<'_, AppState>) -> AiStatus {
+    let mut status = state.ai.status();
+    if !state.settings().ai_enabled
+        && matches!(
+            status.phase,
+            crate::ai::llama::AiPhase::Ready | crate::ai::llama::AiPhase::NotInstalled
+        )
+    {
+        status.message = Some("Local AI is turned off.".into());
+    }
+    status
+}
+
+#[tauri::command]
+pub async fn download_ai_model(state: State<'_, AppState>) -> AppResult<()> {
+    state.ai.download().await
+}
+
+#[tauri::command]
+pub fn cancel_ai_download(state: State<'_, AppState>) {
+    state.ai.cancel();
+}
+
+#[tauri::command]
+pub fn remove_ai_model(state: State<'_, AppState>) -> AppResult<()> {
+    state.ai.remove()
+}
+
+#[tauri::command]
+pub async fn ask_recall(state: State<'_, AppState>, question: String) -> AppResult<AskResponse> {
+    let db = state.db.clone();
+    let settings = state.settings();
+    let engine = state.ai.clone();
+    tauri::async_runtime::spawn_blocking(move || ai::ask(&db, &settings, &engine, &question))
+        .await
+        .map_err(|_| AppError::Internal("The AI request was interrupted".into()))?
+}
+
+#[tauri::command]
+pub async fn check_for_update(app: AppHandle) -> AppResult<Option<UpdateOffer>> {
+    updates::check(&app).await
+}
+
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> AppResult<()> {
+    updates::install(&app).await
 }
 
 #[tauri::command]

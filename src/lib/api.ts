@@ -14,6 +14,10 @@ export interface Settings {
   browserEdgeEnabled: boolean;
   browserFirefoxEnabled: boolean;
   browserSafariEnabled: boolean;
+  screenshotsEnabled: boolean;
+  screenshotIntervalSecs: number;
+  screenshotRetentionDays: number | null;
+  aiEnabled: boolean;
   retentionDays: number | null;
   idleThresholdSecs: number;
   pollIntervalSecs: number;
@@ -106,6 +110,28 @@ export interface PermissionInfo {
   granted: boolean | null;
 }
 
+export interface AiStatus {
+  phase: "not_installed" | "ready" | "downloading" | "generating" | "error";
+  modelName: string;
+  downloadedBytes: number;
+  totalBytes: number;
+  path: string | null;
+  message: string | null;
+}
+
+export interface AskResponse {
+  status: "answered" | "not_enough_memory" | "model_not_installed" | "ai_disabled" | "error";
+  answer: string | null;
+  memories: MemoryEvent[];
+  message: string | null;
+}
+
+export interface UpdateOffer {
+  currentVersion: string;
+  version: string;
+  notes: string | null;
+}
+
 export interface AppInfo {
   version: string;
   platform: "windows" | "macos" | "linux";
@@ -161,6 +187,7 @@ export const api = {
   deleteRange: (start: number, end: number) =>
     call<number>("delete_events_in_range", { start, end }),
   deleteAll: () => call<number>("delete_all_memories"),
+  deleteScreenshots: () => call<number>("delete_screenshots"),
 
   listExclusions: () => call<Exclusion[]>("list_exclusions"),
   addExclusion: (kind: ExclusionKind, pattern: string) =>
@@ -174,6 +201,14 @@ export const api = {
   openDataFolder: () => call<void>("open_data_folder"),
   openLogFolder: () => call<void>("open_log_folder"),
   openUrl: (url: string) => call<void>("open_url", { url }),
+  openPath: (path: string) => call<void>("open_path", { path }),
+  aiStatus: () => call<AiStatus>("get_ai_status"),
+  downloadAiModel: () => call<void>("download_ai_model"),
+  cancelAiDownload: () => call<void>("cancel_ai_download"),
+  removeAiModel: () => call<void>("remove_ai_model"),
+  ask: (question: string) => call<AskResponse>("ask_recall", { question }),
+  checkForUpdate: () => call<UpdateOffer | null>("check_for_update"),
+  installUpdate: () => call<void>("install_update"),
 };
 
 export const events = {

@@ -15,6 +15,7 @@ const COMMANDS: &[&str] = &[
     "get_memory_stats",
     "delete_event",
     "delete_events_in_range",
+    "delete_screenshots",
     "delete_all_memories",
     "list_exclusions",
     "add_exclusion",
@@ -25,6 +26,14 @@ const COMMANDS: &[&str] = &[
     "open_data_folder",
     "open_log_folder",
     "open_url",
+    "open_path",
+    "get_ai_status",
+    "download_ai_model",
+    "cancel_ai_download",
+    "remove_ai_model",
+    "ask_recall",
+    "check_for_update",
+    "install_update",
 ];
 
 fn main() {

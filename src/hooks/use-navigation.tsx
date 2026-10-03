@@ -1,12 +1,14 @@
 import { createContext, useContext } from "react";
 
-export type Page = "home" | "memory" | "search" | "agent" | "settings";
+export type Page = "home" | "memory" | "search" | "ask" | "settings";
 
 export type SettingsSection =
   | "general"
   | "memory"
   | "privacy"
+  | "screenshots"
   | "ai"
+  | "search"
   | "agent"
   | "permissions"
   | "appearance"

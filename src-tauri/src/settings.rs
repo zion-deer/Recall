@@ -17,6 +17,9 @@ pub const PAUSE_INDEFINITELY: i64 = 9_007_199_254_740_991;
 /// Allowed memory retention choices, in days. `None` means forever.
 pub const RETENTION_CHOICES: &[u32] = &[7, 30, 180, 365];
 
+/// Screenshot intervals the settings UI is allowed to store, in seconds.
+pub const SCREENSHOT_INTERVALS: &[u32] = &[15, 30, 60, 300, 600];
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
@@ -42,6 +45,12 @@ pub struct Settings {
     pub browser_edge_enabled: bool,
     pub browser_firefox_enabled: bool,
     pub browser_safari_enabled: bool,
+    /// Optional periodic screenshots. Off until the user enables them.
+    pub screenshots_enabled: bool,
+    pub screenshot_interval_secs: u32,
+    pub screenshot_retention_days: Option<u32>,
+    /// Local answers about recorded memory. The model is installed separately.
+    pub ai_enabled: bool,
     pub retention_days: Option<u32>,
     pub idle_threshold_secs: u32,
     pub poll_interval_secs: u32,
@@ -61,6 +70,10 @@ impl Default for Settings {
             browser_edge_enabled: true,
             browser_firefox_enabled: true,
             browser_safari_enabled: true,
+            screenshots_enabled: false,
+            screenshot_interval_secs: 60,
+            screenshot_retention_days: Some(7),
+            ai_enabled: false,
             retention_days: Some(180),
             idle_threshold_secs: 300,
             poll_interval_secs: 2,
@@ -82,6 +95,18 @@ impl Settings {
             return Err(AppError::invalid(
                 "Idle threshold must be between 1 and 60 minutes",
             ));
+        }
+        if !SCREENSHOT_INTERVALS.contains(&self.screenshot_interval_secs) {
+            return Err(AppError::invalid(
+                "Screenshot interval must be 15 seconds, 30 seconds, 1 minute, 5 minutes, or 10 minutes",
+            ));
+        }
+        if let Some(days) = self.screenshot_retention_days {
+            if !RETENTION_CHOICES.contains(&days) {
+                return Err(AppError::invalid(format!(
+                    "Unsupported screenshot retention period: {days} days"
+                )));
+            }
         }
         if !(1..=30).contains(&self.poll_interval_secs) {
             return Err(AppError::invalid(

@@ -1,4 +1,4 @@
-import { Bot, Clock3, Home, Search, Settings } from "lucide-react";
+import { Clock3, Home, Search, Settings, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { RecordingControl, StatusDot } from "@/components/recording-control";
 import { useNavigation, type Page } from "@/hooks/use-navigation";
@@ -10,7 +10,7 @@ const NAV: { page: Page; label: string; icon: typeof Home; soon?: boolean }[] = 
   { page: "home", label: "Home", icon: Home },
   { page: "memory", label: "Memory", icon: Clock3 },
   { page: "search", label: "Search", icon: Search },
-  { page: "agent", label: "Agent", icon: Bot, soon: true },
+  { page: "ask", label: "Ask", icon: Sparkles },
   { page: "settings", label: "Settings", icon: Settings },
 ];
 

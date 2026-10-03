@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
+use crate::ai::llama::AiEngine;
 use crate::error::AppResult;
 use crate::memory::privacy::{self, PrivacyFilter};
 use crate::memory::recorder::{RecorderHandle, SharedConfig};
@@ -13,6 +14,7 @@ pub struct AppState {
     pub config: Arc<SharedConfig>,
     pub recorder: RecorderHandle,
     pub platform: Arc<dyn PlatformAdapter>,
+    pub ai: Arc<AiEngine>,
     pub data_dir: PathBuf,
     pub log_dir: PathBuf,
 }

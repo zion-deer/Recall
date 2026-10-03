@@ -11,6 +11,9 @@ import {
   PermissionsSection,
   PlannedSection,
   PrivacySection,
+  ScreenshotsSection,
+  SearchSettingsSection,
+  AiSection,
   UpdatesSection,
 } from "./sections";
 
@@ -18,7 +21,9 @@ const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: "general", label: "General" },
   { id: "memory", label: "Memory" },
   { id: "privacy", label: "Privacy" },
+  { id: "screenshots", label: "Screenshots" },
   { id: "ai", label: "AI" },
+  { id: "search", label: "Search" },
   { id: "agent", label: "Agent" },
   { id: "permissions", label: "Permissions" },
   { id: "appearance", label: "Appearance" },
@@ -35,16 +40,12 @@ function SectionBody({ id }: { id: SettingsSection }) {
       return <MemorySection />;
     case "privacy":
       return <PrivacySection />;
+    case "screenshots":
+      return <ScreenshotsSection />;
     case "ai":
-      return (
-        <PlannedSection title="AI">
-          <p>
-            AI answers about your memory are planned for a later release. They'll run on your computer by
-            default using a local model, and only the few memories relevant to your question will be shown to
-            the model. Cloud AI, if offered, will be optional and clearly labeled.
-          </p>
-        </PlannedSection>
-      );
+      return <AiSection />;
+    case "search":
+      return <SearchSettingsSection />;
     case "agent":
       return (
         <PlannedSection title="Agent">

@@ -1,11 +1,12 @@
 import { ExternalLink, FolderOpen, RotateCw } from "lucide-react";
-import { useState } from "react";
+import { toast } from "sonner";
+import { useEffect, useState } from "react";
 import { PAUSE_OPTIONS } from "@/components/recording-control";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAsync } from "@/hooks/use-async";
 import { notifyError, useRecall } from "@/hooks/use-recall";
-import { api, type Settings, type Theme } from "@/lib/api";
+import { api, toRecallError, type Settings, type Theme } from "@/lib/api";
 import { describePause, formatBytes, formatDayLabel, retentionLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DeleteAllButton, ExportButton } from "./data-actions";
@@ -485,16 +486,212 @@ export function PlannedSection({ title, children }: { title: string; children: R
   );
 }
 
+export function ScreenshotsSection() {
+  const [s, set] = useSetting();
+  const intervals = [
+    { value: 15, label: "Every 15 seconds" },
+    { value: 30, label: "Every 30 seconds" },
+    { value: 60, label: "Every minute" },
+    { value: 300, label: "Every 5 minutes" },
+    { value: 600, label: "Every 10 minutes" },
+  ];
+  return (
+    <Section title="Screenshots" description="Screenshots stay on this computer and are off until you enable them.">
+      <Group>
+        <ToggleRow
+          label="Enable screenshots"
+          description="Capture the current display on the interval below. Paused, idle, excluded, and Recall windows are skipped."
+          checked={s.screenshotsEnabled}
+          onChange={(value) => set({ screenshotsEnabled: value })}
+        />
+        <Row
+          label="Screenshot interval"
+          control={
+            <ChoiceSelect
+              label="Screenshot interval"
+              value={s.screenshotIntervalSecs}
+              options={intervals}
+              onChange={(value) => set({ screenshotIntervalSecs: value })}
+            />
+          }
+        />
+        <Row
+          label="Keep screenshots for"
+          description="Screenshot images are removed separately from other memories."
+          control={
+            <ChoiceSelect
+              label="Screenshot retention"
+              value={s.screenshotRetentionDays}
+              options={RETENTION_OPTIONS}
+              onChange={(value) => set({ screenshotRetentionDays: value })}
+            />
+          }
+        />
+        <Row
+          label="Delete screenshots"
+          description="Delete all screenshot images and their timeline entries. Other memories stay."
+          control={<DeleteScreenshotsButton />}
+        />
+      </Group>
+    </Section>
+  );
+}
+
+export function AiSection() {
+  const [s, set] = useSetting();
+  const [version, setVersion] = useState(0);
+  const status = useAsync(() => api.aiStatus(), [version, s.aiEnabled]);
+  const [busy, setBusy] = useState(false);
+  const phase = status.data?.phase;
+  const label = {
+    not_installed: "Not installed",
+    ready: "Ready",
+    downloading: "Downloading",
+    generating: "Generating",
+    error: "Error",
+  }[phase ?? "not_installed"];
+
+  useEffect(() => {
+    if (phase !== "downloading") return;
+    const timer = window.setInterval(() => setVersion((value) => value + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [phase]);
+
+  async function run(action: () => Promise<unknown>) {
+    setBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      notifyError(error, "AI model action failed");
+    } finally {
+      setBusy(false);
+      setVersion((value) => value + 1);
+    }
+  }
+
+  const progress = status.data && status.data.totalBytes > 0
+    ? Math.min(100, Math.round((status.data.downloadedBytes / status.data.totalBytes) * 100))
+    : 0;
+
+  return (
+    <Section title="AI" description="Llama 3.2 1B runs only on this computer. Recall works fully without it.">
+      <Group>
+        <ToggleRow
+          label="Local AI answers"
+          description="When on, Ask Recall can summarize the memories it retrieves. Nothing is uploaded."
+          checked={s.aiEnabled}
+          onChange={(value) => set({ aiEnabled: value })}
+        />
+        <Row label="Model" control={<span className="text-sm">Llama 3.2 1B</span>} />
+        <Row
+          label="Status"
+          description={status.data?.message ?? (status.data?.path ? "Stored in your Recall data folder." : "About 770 MB, downloaded only when you choose Install.")}
+          control={<span className="text-sm">{status.status === "loading" && !status.data ? "Checking…" : label}</span>}
+        />
+        {phase === "downloading" && (
+          <Row label="Download progress" control={<span className="text-sm tabular-nums">{progress}%</span>} />
+        )}
+        <Row
+          label="Model file"
+          control={
+            <div className="flex flex-wrap gap-2">
+              {phase === "downloading" ? (
+                <Button size="sm" variant="outline" onClick={() => run(() => api.cancelAiDownload())}>Cancel</Button>
+              ) : phase === "ready" || phase === "generating" ? (
+                <Button size="sm" variant="destructive" disabled={busy || phase === "generating"} onClick={() => run(() => api.removeAiModel())}>
+                  Remove model
+                </Button>
+              ) : (
+                <Button size="sm" disabled={busy} onClick={() => run(() => api.downloadAiModel())}>Install AI model</Button>
+              )}
+            </div>
+          }
+        />
+      </Group>
+    </Section>
+  );
+}
+
+export function SearchSettingsSection() {
+  return (
+    <Section title="Search" description="Search runs entirely on this computer.">
+      <Group>
+        <Row label="What it covers" description="Application names, window titles, websites, URLs, file paths, and screenshot descriptions." />
+        <Row label="Ranking" description="Exact titles and web addresses are shown before broader matches, then more recent memories." />
+      </Group>
+    </Section>
+  );
+}
+
+function DeleteScreenshotsButton() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="destructive"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const count = await api.deleteScreenshots();
+          toast.success(count === 0 ? "No screenshots to delete" : `Deleted ${count} screenshots`);
+        } catch (error) {
+          notifyError(error, "Couldn't delete screenshots");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Deleting…" : "Delete screenshots"}
+    </Button>
+  );
+}
+
 export function UpdatesSection() {
   const { info } = useRecall();
+  const [offer, setOffer] = useState<Awaited<ReturnType<typeof api.checkForUpdate>> | undefined>(undefined);
+  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function check() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const next = await api.checkForUpdate();
+      setOffer(next);
+      if (!next) setMessage("Recall is up to date.");
+    } catch (error) {
+      setOffer(null);
+      setMessage(toRecallError(error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function install() {
+    setBusy(true);
+    try {
+      await api.installUpdate();
+    } catch (error) {
+      notifyError(error, "Update failed");
+      setBusy(false);
+    }
+  }
+
   return (
-    <Section title="Updates">
+    <Section title="Updates" description="Recall checks for a signed release when it starts. Nothing installs until you choose Update.">
       <Group>
         <Row label="Installed version" control={<span className="text-sm tabular-nums">{info.version}</span>} />
         <Row
-          label="Automatic updates"
-          muted
-          description="Signed, verified automatic updates are being built for an upcoming release. Until then, install new versions manually."
+          label="Update"
+          description={offer ? `Version ${offer.version} is available.` : message ?? "Updates are verified before installation. A failed update leaves this version in place."}
+          control={
+            offer ? (
+              <Button size="sm" disabled={busy} onClick={install}>{busy ? "Updating…" : "Update now"}</Button>
+            ) : (
+              <Button size="sm" variant="outline" disabled={busy} onClick={check}>{busy ? "Checking…" : "Check for updates"}</Button>
+            )
+          }
         />
       </Group>
     </Section>

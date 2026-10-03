@@ -1,3 +1,4 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { AppAvatar } from "@/components/app-avatar";
 import type { MemoryEvent } from "@/lib/api";
 import { formatDuration, formatTime } from "@/lib/format";
@@ -37,6 +38,13 @@ export function MemoryRow({
           {title ?? "No window title"}
         </span>
       </span>
+      {event.kind === "screenshot" && event.filePath && (
+        <img
+          src={convertFileSrc(event.filePath)}
+          alt=""
+          className="h-12 w-20 shrink-0 rounded-md object-cover"
+        />
+      )}
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
         {website ? (
           website

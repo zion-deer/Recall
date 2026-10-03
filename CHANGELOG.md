@@ -5,6 +5,18 @@ All notable changes to Recall are documented here. This project uses [semantic v
 ## [Unreleased]
 
 ### Features
+- Optional screenshots, off by default, with interval and separate retention. Images stay in the local Recall data folder and are removed when the memory is deleted.
+- Ask Recall uses Llama 3.2 1B locally. The model is downloaded only when requested, and answers are built from a small set of retrieved memories rather than the whole database.
+- Settings for screenshots, AI, search, and signed updates.
+- `npm run release:patch`, `release:minor`, and `release:major` synchronize the version and create the release tag.
+
+### Security
+- Screenshot deletion can remove only JPEGs inside the screenshots directory.
+- AI downloads are checked against a pinned SHA-256. Update packages must match the compiled minisign public key; a failed update leaves the installed version in place.
+
+## [0.1.1]
+
+### Features
 - Browser memory for Chrome, Edge, Firefox, and Safari on macOS: URL, page title, browser, and visit time.
 - Browser-level controls and installation/status reporting in Memory and Privacy settings.
 - Normal browser-history databases only; private/incognito visits are never imported.

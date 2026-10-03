@@ -114,8 +114,8 @@ export function Onboarding() {
                 your system tray.
               </p>
               <p className="mt-3 leading-relaxed text-muted-foreground">
-                Your timeline fills in as you work. Search and questions like “What was I working on yesterday?”
-                arrive in upcoming updates.
+                Screenshots and local AI answers are optional and stay off until you turn them on. Search and Ask
+                use only what is already stored on this computer.
               </p>
               <Footer>
                 <Button variant="ghost" onClick={() => finish(false)}>

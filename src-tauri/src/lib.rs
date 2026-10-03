@@ -1,3 +1,4 @@
+mod ai;
 mod commands;
 mod error;
 mod memory;
@@ -6,6 +7,7 @@ mod settings;
 mod state;
 mod storage;
 mod tray;
+mod updates;
 
 use std::sync::Arc;
 
@@ -40,17 +42,21 @@ fn init(app: &AppHandle) -> Result<AppState, String> {
     let db = Arc::new(Database::open(&data_dir.join("recall.db")).map_err(|e| e.to_string())?);
     let config = Arc::new(AppState::load_config(&db).map_err(|e| e.to_string())?);
     let platform: Arc<dyn platform::PlatformAdapter> = Arc::from(platform::current());
+    let screenshots_dir = data_dir.join("screenshots");
     let recorder = RecorderHandle::spawn(
         db.clone(),
         config.clone(),
         platform.clone(),
+        screenshots_dir,
         TauriNotifier(app.clone()),
     );
+    let ai = Arc::new(ai::llama::AiEngine::new(data_dir.join("models")));
     Ok(AppState {
         db,
         config,
         recorder,
         platform,
+        ai,
         data_dir,
         log_dir,
     })
@@ -97,6 +103,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             log::info!("Recall {} starting", env!("CARGO_PKG_VERSION"));
             let handle = app.handle().clone();
@@ -115,6 +122,16 @@ pub fn run() {
                     std::process::exit(1);
                 }
             }
+            let update_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                match updates::check(&update_handle).await {
+                    Ok(Some(update)) => {
+                        let _ = update_handle.emit("update:available", update);
+                    }
+                    Ok(None) => {}
+                    Err(error) => log::info!("update check skipped: {error}"),
+                }
+            });
             match tray::create(&handle) {
                 Ok(menu) => {
                     app.manage(menu);
@@ -147,6 +164,7 @@ pub fn run() {
             commands::get_memory_stats,
             commands::delete_event,
             commands::delete_events_in_range,
+            commands::delete_screenshots,
             commands::delete_all_memories,
             commands::list_exclusions,
             commands::add_exclusion,
@@ -157,6 +175,14 @@ pub fn run() {
             commands::open_data_folder,
             commands::open_log_folder,
             commands::open_url,
+            commands::open_path,
+            commands::get_ai_status,
+            commands::download_ai_model,
+            commands::cancel_ai_download,
+            commands::remove_ai_model,
+            commands::ask_recall,
+            commands::check_for_update,
+            commands::install_update,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Recall");

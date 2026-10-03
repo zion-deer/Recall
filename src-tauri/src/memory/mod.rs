@@ -8,6 +8,7 @@ pub mod browser;
 pub mod export;
 pub mod privacy;
 pub mod recorder;
+pub mod screenshots;
 pub mod store;
 
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,7 @@ use serde::{Deserialize, Serialize};
 pub enum EventKind {
     AppActivity,
     BrowserActivity,
+    Screenshot,
 }
 
 impl EventKind {
@@ -24,6 +26,7 @@ impl EventKind {
         match self {
             Self::AppActivity => "app_activity",
             Self::BrowserActivity => "browser_activity",
+            Self::Screenshot => "screenshot",
         }
     }
 
@@ -31,6 +34,7 @@ impl EventKind {
         match s {
             "app_activity" => Some(Self::AppActivity),
             "browser_activity" => Some(Self::BrowserActivity),
+            "screenshot" => Some(Self::Screenshot),
             _ => None,
         }
     }

@@ -21,7 +21,11 @@ When recording is on, for the window in front:
 | Start and end time | Idle periods (no keyboard/mouse input) are not counted |
 | Normal browser visits (optional) | Browser name, page title, sanitized HTTP(S) URL, and visit time from Chrome, Edge, Firefox, and Safari on macOS |
 
-Recall does **not** record keystrokes, clipboard contents, screen contents, audio, file contents, cookies, saved logins, autofill, payment information, or browser preferences. Screenshots are not part of this version.
+Recall does **not** record keystrokes, clipboard contents, audio, file contents, cookies, saved logins, autofill, payment information, or browser preferences.
+
+Screenshots are off until you enable them in Settings. They are JPEG files in the Recall data folder, not uploaded anywhere. Pause, idle time, excluded apps, and Recall's own window skip capture. Screenshot retention is separate from other memories, and deleting a screenshot deletes its image file.
+
+Local AI is also off until you enable it and choose to download Llama 3.2 1B Instruct (about 770 MB). The download is verified with a pinned SHA-256 checksum. A question searches your local memory first; only a short list of relevant records is given to the model. If those records do not contain an answer, Recall says so instead of inventing one. The model is removed from disk when you choose Remove model.
 
 Browser memory is off by default. When enabled, Recall reads only the browser's normal history SQLite database every 15 seconds. It makes a private, short-lived snapshot because browsers may keep the original file locked. It never modifies the browser database.
 

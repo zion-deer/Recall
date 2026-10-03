@@ -59,6 +59,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Recall ${{ github.ref_name }}"
           releaseBody: "See CHANGELOG.md for details."
-          releaseDraft: true
-          prerelease: true
+          releaseDraft: false
+          prerelease: false
           args: ${{ matrix.args }}
