@@ -317,9 +317,9 @@ export function PrivacySection() {
               onClick={() =>
                 setDialog({
                   title: "Excluded websites",
-                  description: "Recall never records these sites, including their subdomains.",
+                  description:
+                    "Recall never stores the URL or page title for these sites, including their subdomains. Adding one also deletes matching browser memories.",
                   kinds: ["website"],
-                  note: "Until browser history arrives, sites are matched when their address appears in a window title.",
                 })
               }
             >

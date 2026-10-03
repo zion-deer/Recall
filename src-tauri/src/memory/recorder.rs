@@ -226,6 +226,12 @@ impl RecorderCore {
         if filter.excludes(&candidate) {
             return Ok((RecorderStatus::new(Excluded), self.tracker.close(db, now)?));
         }
+        if super::browser::handles_window(settings, &window.app_name, window.app_id.as_deref()) {
+            // The browser provider stores title and URL together only after
+            // website exclusions run, so the generic collector must not leak
+            // or duplicate the page title.
+            return Ok((RecorderStatus::new(Recording), self.tracker.close(db, now)?));
+        }
         let key = SessionKey {
             app_name: window.app_name.clone(),
             app_id: window.app_id,
@@ -595,6 +601,33 @@ mod tests {
         let e = events(&db);
         assert_eq!(e.len(), 1);
         assert_eq!(e[0].window_title, None, "titles are dropped when disabled");
+    }
+
+    #[test]
+    fn browser_provider_prevents_generic_page_title_duplicates() {
+        let db = Database::open_in_memory().unwrap();
+        let p = FakePlatform::default();
+        let mut core = RecorderCore::new(1);
+        let settings = Settings {
+            recording_enabled: true,
+            browser_activity_enabled: true,
+            ..Settings::default()
+        };
+        p.focus("google-chrome", "Private account page - Google Chrome", 10);
+        let (status, _) = core
+            .tick(&db, &settings, &PrivacyFilter::default(), &p, 1_000)
+            .unwrap();
+        assert_eq!(status.state, RecorderState::Recording);
+        assert!(events(&db).is_empty());
+
+        p.focus("Code", "main.rs", 11);
+        core.tick(&db, &settings, &PrivacyFilter::default(), &p, 2_000)
+            .unwrap();
+        assert_eq!(
+            events(&db).len(),
+            1,
+            "non-browser app recording still works"
+        );
     }
 
     #[test]

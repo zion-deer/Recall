@@ -418,6 +418,33 @@ pub struct BrowserCollector {
     active_providers: HashSet<&'static str>,
 }
 
+/// Selected browsers are handled by the browser provider instead of the
+/// generic window-title collector. This prevents duplicate timeline entries
+/// and, critically, ensures a website exclusion cannot leak the excluded
+/// page title through a generic app-activity event.
+pub fn handles_window(settings: &Settings, app_name: &str, app_id: Option<&str>) -> bool {
+    if !settings.browser_activity_enabled {
+        return false;
+    }
+    let haystack = format!(
+        "{} {}",
+        app_name.to_ascii_lowercase(),
+        app_id.unwrap_or_default().to_ascii_lowercase()
+    );
+    (settings.browser_chrome_enabled
+        && (haystack.contains("google chrome")
+            || haystack.contains("google-chrome")
+            || haystack.contains("chrome.exe")
+            || haystack.contains("/chrome")))
+        || (settings.browser_edge_enabled
+            && (haystack.contains("microsoft edge")
+                || haystack.contains("msedge")
+                || haystack.contains("/edge")))
+        || (settings.browser_firefox_enabled && haystack.contains("firefox"))
+        || (settings.browser_safari_enabled
+            && (haystack.contains("safari.app") || app_name.eq_ignore_ascii_case("safari")))
+}
+
 impl Default for BrowserCollector {
     fn default() -> Self {
         Self {
