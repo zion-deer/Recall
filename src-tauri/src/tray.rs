@@ -23,7 +23,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
     let quit = MenuItem::with_id(app, "quit", "Quit Recall", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
-        &[&status, &toggle, &PredefinedMenuItem::separator(app)?, &open, &quit],
+        &[
+            &status,
+            &toggle,
+            &PredefinedMenuItem::separator(app)?,
+            &open,
+            &quit,
+        ],
     )?;
 
     let mut builder = TrayIconBuilder::with_id("main")
@@ -52,7 +58,11 @@ pub fn update(menu: &TrayMenu, status: &RecorderStatus) {
         RecorderState::NoWindow | RecorderState::Starting => "Recording",
         RecorderState::Unavailable => "Activity tracking unavailable",
     };
-    let toggle = if status.state == RecorderState::Paused { "Resume recording" } else { "Pause recording" };
+    let toggle = if status.state == RecorderState::Paused {
+        "Resume recording"
+    } else {
+        "Pause recording"
+    };
     let _ = menu.status.set_text(label);
     let _ = menu.toggle.set_text(toggle);
     let _ = menu.toggle.set_enabled(status.state != RecorderState::Off);
@@ -61,7 +71,11 @@ pub fn update(menu: &TrayMenu, status: &RecorderStatus) {
 fn toggle_pause(app: &AppHandle) {
     let state = app.state::<AppState>();
     let paused = state.settings().is_paused(now_ms());
-    let result = state.set_paused_until(if paused { None } else { Some(PAUSE_INDEFINITELY) });
+    let result = state.set_paused_until(if paused {
+        None
+    } else {
+        Some(PAUSE_INDEFINITELY)
+    });
     match result {
         Ok(s) => {
             let _ = app.emit(EVENT_SETTINGS_CHANGED, &s);

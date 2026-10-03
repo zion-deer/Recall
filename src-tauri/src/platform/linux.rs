@@ -28,7 +28,9 @@ impl PlatformAdapter for LinuxAdapter {
                 "Activity tracking needs an X11 session on Linux".into(),
             ));
         }
-        Ok(active_win_pos_rs::get_active_window().ok().and_then(from_probe))
+        Ok(active_win_pos_rs::get_active_window()
+            .ok()
+            .and_then(from_probe))
     }
 
     fn idle_seconds(&self) -> Option<u64> {

@@ -28,7 +28,9 @@ impl EventQuery {
         }
         if let Some(limit) = self.limit {
             if limit == 0 || limit > MAX_PAGE_SIZE {
-                return Err(AppError::invalid(format!("Limit must be between 1 and {MAX_PAGE_SIZE}")));
+                return Err(AppError::invalid(format!(
+                    "Limit must be between 1 and {MAX_PAGE_SIZE}"
+                )));
             }
         }
         if let Some(app) = &self.app_name {
@@ -138,7 +140,10 @@ pub fn list_events(db: &Database, q: &EventQuery) -> AppResult<Vec<MemoryEvent>>
          LIMIT ?5"
     ))?;
     let limit = q.limit.unwrap_or(200);
-    let rows = stmt.query_map(params![q.start, q.end, q.app_name, q.kind, limit], map_event)?;
+    let rows = stmt.query_map(
+        params![q.start, q.end, q.app_name, q.kind, limit],
+        map_event,
+    )?;
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
@@ -169,7 +174,10 @@ pub fn app_usage(db: &Database, start: i64, end: i64) -> AppResult<Vec<AppUsage>
 }
 
 pub fn delete_event(db: &Database, id: i64) -> AppResult<bool> {
-    Ok(db.conn().execute("DELETE FROM events WHERE id = ?1", [id])? > 0)
+    Ok(db
+        .conn()
+        .execute("DELETE FROM events WHERE id = ?1", [id])?
+        > 0)
 }
 
 /// Deletes every event that overlaps `[start, end)`.
@@ -305,19 +313,33 @@ mod tests {
 
         let ranged = list_events(
             &db,
-            &EventQuery { start: Some(6_000), end: Some(10_500), ..Default::default() },
+            &EventQuery {
+                start: Some(6_000),
+                end: Some(10_500),
+                ..Default::default()
+            },
         )
         .unwrap();
         assert_eq!(ranged.len(), 2, "overlapping events are included");
 
         let code = list_events(
             &db,
-            &EventQuery { app_name: Some("CODE".into()), ..Default::default() },
+            &EventQuery {
+                app_name: Some("CODE".into()),
+                ..Default::default()
+            },
         )
         .unwrap();
         assert_eq!(code.len(), 2, "app filter is case-insensitive");
 
-        let limited = list_events(&db, &EventQuery { limit: Some(1), ..Default::default() }).unwrap();
+        let limited = list_events(
+            &db,
+            &EventQuery {
+                limit: Some(1),
+                ..Default::default()
+            },
+        )
+        .unwrap();
         assert_eq!(limited.len(), 1);
     }
 
@@ -325,11 +347,27 @@ mod tests {
     fn query_validation() {
         let db = Database::open_in_memory().unwrap();
         for q in [
-            EventQuery { start: Some(10), end: Some(5), ..Default::default() },
-            EventQuery { limit: Some(0), ..Default::default() },
-            EventQuery { limit: Some(MAX_PAGE_SIZE + 1), ..Default::default() },
-            EventQuery { kind: Some("nope".into()), ..Default::default() },
-            EventQuery { app_name: Some("x".repeat(600)), ..Default::default() },
+            EventQuery {
+                start: Some(10),
+                end: Some(5),
+                ..Default::default()
+            },
+            EventQuery {
+                limit: Some(0),
+                ..Default::default()
+            },
+            EventQuery {
+                limit: Some(MAX_PAGE_SIZE + 1),
+                ..Default::default()
+            },
+            EventQuery {
+                kind: Some("nope".into()),
+                ..Default::default()
+            },
+            EventQuery {
+                app_name: Some("x".repeat(600)),
+                ..Default::default()
+            },
         ] {
             assert!(list_events(&db, &q).is_err());
         }
@@ -339,7 +377,10 @@ mod tests {
     fn app_usage_clips_to_range() {
         let db = db_with_events();
         let usage = app_usage(&db, 3_000, 11_000).unwrap();
-        let code = usage.iter().find(|u| u.app_name.eq_ignore_ascii_case("code")).unwrap();
+        let code = usage
+            .iter()
+            .find(|u| u.app_name.eq_ignore_ascii_case("code"))
+            .unwrap();
         assert_eq!(code.total_ms, 2_000 + 1_000);
         assert_eq!(code.sessions, 2);
         let chrome = usage.iter().find(|u| u.app_name == "Chrome").unwrap();
@@ -376,6 +417,9 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         let title = "'); DROP TABLE events; --";
         let id = insert_event(&db, &sample("Code", title, 1, 2)).unwrap();
-        assert_eq!(get_event(&db, id).unwrap().unwrap().window_title.as_deref(), Some(title));
+        assert_eq!(
+            get_event(&db, id).unwrap().unwrap().window_title.as_deref(),
+            Some(title)
+        );
     }
 }

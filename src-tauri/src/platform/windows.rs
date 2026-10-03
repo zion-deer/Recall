@@ -16,7 +16,9 @@ impl PlatformAdapter for WindowsAdapter {
     fn active_window(&self) -> AppResult<Option<ActiveWindow>> {
         // Fails when the foreground window is the desktop, the lock screen, or
         // an elevated process we are not allowed to inspect. That is "no window".
-        Ok(active_win_pos_rs::get_active_window().ok().and_then(from_probe))
+        Ok(active_win_pos_rs::get_active_window()
+            .ok()
+            .and_then(from_probe))
     }
 
     fn idle_seconds(&self) -> Option<u64> {

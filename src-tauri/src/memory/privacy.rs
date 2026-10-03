@@ -143,7 +143,11 @@ fn normalize_app(name: &str) -> String {
 fn normalize_path(path: &str) -> String {
     let p = path.trim().replace('\\', "/").to_lowercase();
     let trimmed = p.trim_end_matches('/');
-    if trimmed.is_empty() { "/".into() } else { trimmed.to_string() }
+    if trimmed.is_empty() {
+        "/".into()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 fn file_stem(path: &str) -> &str {
@@ -169,7 +173,9 @@ pub fn validate_pattern(kind: ExclusionKind, raw: &str) -> AppResult<String> {
         return Err(AppError::invalid("That exclusion is too long"));
     }
     if p.chars().any(char::is_control) {
-        return Err(AppError::invalid("That exclusion contains invalid characters"));
+        return Err(AppError::invalid(
+            "That exclusion contains invalid characters",
+        ));
     }
     match kind {
         ExclusionKind::Website => {
@@ -195,10 +201,16 @@ pub fn validate_pattern(kind: ExclusionKind, raw: &str) -> AppResult<String> {
                     && normalized.as_bytes()[0].is_ascii_alphabetic()
                     && &normalized[1..3] == ":/");
             if !absolute {
-                return Err(AppError::invalid("Enter a full folder path, like /Users/me/Private or C:\\Private"));
+                return Err(AppError::invalid(
+                    "Enter a full folder path, like /Users/me/Private or C:\\Private",
+                ));
             }
             let trimmed = p.trim_end_matches(['/', '\\']);
-            Ok(if trimmed.is_empty() { p[..1].to_string() } else { trimmed.to_string() })
+            Ok(if trimmed.is_empty() {
+                p[..1].to_string()
+            } else {
+                trimmed.to_string()
+            })
         }
         ExclusionKind::App | ExclusionKind::Title => Ok(p.to_string()),
     }
@@ -217,7 +229,12 @@ pub fn list(db: &Database) -> AppResult<Vec<Exclusion>> {
     for row in rows {
         let (id, kind, pattern, created_at): (i64, String, String, i64) = row?;
         if let Some(kind) = ExclusionKind::parse(&kind) {
-            out.push(Exclusion { id, kind, pattern, created_at });
+            out.push(Exclusion {
+                id,
+                kind,
+                pattern,
+                created_at,
+            });
         }
     }
     Ok(out)
@@ -234,11 +251,19 @@ pub fn add(db: &Database, kind: ExclusionKind, raw: &str) -> AppResult<Exclusion
     if inserted == 0 {
         return Err(AppError::invalid("That exclusion already exists"));
     }
-    Ok(Exclusion { id: conn.last_insert_rowid(), kind, pattern, created_at })
+    Ok(Exclusion {
+        id: conn.last_insert_rowid(),
+        kind,
+        pattern,
+        created_at,
+    })
 }
 
 pub fn remove(db: &Database, id: i64) -> AppResult<bool> {
-    Ok(db.conn().execute("DELETE FROM exclusions WHERE id = ?1", [id])? > 0)
+    Ok(db
+        .conn()
+        .execute("DELETE FROM exclusions WHERE id = ?1", [id])?
+        > 0)
 }
 
 /// Removes already-stored memories that match `filter`. Used when the user
@@ -259,11 +284,19 @@ mod tests {
     use super::*;
 
     fn rule(kind: ExclusionKind, pattern: &str) -> PrivacyFilter {
-        PrivacyFilter::new(&[Exclusion { id: 1, kind, pattern: pattern.into(), created_at: 0 }])
+        PrivacyFilter::new(&[Exclusion {
+            id: 1,
+            kind,
+            pattern: pattern.into(),
+            created_at: 0,
+        }])
     }
 
     fn app(name: &str) -> Candidate<'_> {
-        Candidate { app_name: Some(name), ..Default::default() }
+        Candidate {
+            app_name: Some(name),
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -283,37 +316,58 @@ mod tests {
         }));
 
         let bundle = rule(ExclusionKind::App, "com.example.secret");
-        assert!(bundle.excludes(&Candidate { app_id: Some("com.example.Secret"), ..Default::default() }));
+        assert!(bundle.excludes(&Candidate {
+            app_id: Some("com.example.Secret"),
+            ..Default::default()
+        }));
     }
 
     #[test]
     fn title_rules_are_case_insensitive_substrings() {
         let f = rule(ExclusionKind::Title, "Incognito");
-        assert!(f.excludes(&Candidate { window_title: Some("New Tab - Google Chrome (incognito)"), ..Default::default() }));
-        assert!(!f.excludes(&Candidate { window_title: Some("Rust docs"), ..Default::default() }));
+        assert!(f.excludes(&Candidate {
+            window_title: Some("New Tab - Google Chrome (incognito)"),
+            ..Default::default()
+        }));
+        assert!(!f.excludes(&Candidate {
+            window_title: Some("Rust docs"),
+            ..Default::default()
+        }));
         assert!(!f.excludes(&Candidate::default()));
     }
 
     #[test]
     fn website_rules_match_host_and_subdomains() {
         let f = rule(ExclusionKind::Website, "bank.com");
-        let url = |u| Candidate { url: Some(u), ..Default::default() };
+        let url = |u| Candidate {
+            url: Some(u),
+            ..Default::default()
+        };
         assert!(f.excludes(&url("https://bank.com/login")));
         assert!(f.excludes(&url("https://secure.BANK.com:443/x")));
         assert!(f.excludes(&url("https://user:pw@bank.com")));
         assert!(!f.excludes(&url("https://notbank.com")));
         assert!(!f.excludes(&url("https://bank.com.evil.io")));
-        assert!(f.excludes(&Candidate { window_title: Some("Login | bank.com - Chrome"), ..Default::default() }));
+        assert!(f.excludes(&Candidate {
+            window_title: Some("Login | bank.com - Chrome"),
+            ..Default::default()
+        }));
     }
 
     #[test]
     fn folder_rules_match_paths_inside_folder() {
         let f = rule(ExclusionKind::Folder, r"C:\Users\me\Private\");
-        let file = |p| Candidate { file_path: Some(p), ..Default::default() };
+        let file = |p| Candidate {
+            file_path: Some(p),
+            ..Default::default()
+        };
         assert!(f.excludes(&file(r"c:\users\me\private\taxes.pdf")));
         assert!(f.excludes(&file("C:/Users/me/Private")));
         assert!(!f.excludes(&file(r"C:\Users\me\PrivateNotes\a.txt")));
-        assert!(f.excludes(&Candidate { window_title: Some(r"taxes.pdf - C:\Users\me\Private - Explorer"), ..Default::default() }));
+        assert!(f.excludes(&Candidate {
+            window_title: Some(r"taxes.pdf - C:\Users\me\Private - Explorer"),
+            ..Default::default()
+        }));
     }
 
     #[test]
@@ -324,13 +378,22 @@ mod tests {
         assert!(validate_pattern(Title, "bad\u{0007}").is_err());
         assert_eq!(validate_pattern(App, " Slack ").unwrap(), "Slack");
 
-        assert_eq!(validate_pattern(Website, "https://www.Example.com/path?q").unwrap(), "example.com");
+        assert_eq!(
+            validate_pattern(Website, "https://www.Example.com/path?q").unwrap(),
+            "example.com"
+        );
         assert!(validate_pattern(Website, "not a site").is_err());
         assert!(validate_pattern(Website, "localhost").is_err());
         assert!(validate_pattern(Website, "a..b.com").is_err());
 
-        assert_eq!(validate_pattern(Folder, "/Users/me/Private/").unwrap(), "/Users/me/Private");
-        assert_eq!(validate_pattern(Folder, r"C:\Secret\").unwrap(), r"C:\Secret");
+        assert_eq!(
+            validate_pattern(Folder, "/Users/me/Private/").unwrap(),
+            "/Users/me/Private"
+        );
+        assert_eq!(
+            validate_pattern(Folder, r"C:\Secret\").unwrap(),
+            r"C:\Secret"
+        );
         assert_eq!(validate_pattern(Folder, "/").unwrap(), "/");
         assert!(validate_pattern(Folder, "relative/path").is_err());
         assert!(validate_pattern(Folder, "../etc").is_err());
@@ -341,7 +404,10 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         let before = list(&db).unwrap().len();
         let e = add(&db, ExclusionKind::App, "Slack").unwrap();
-        assert!(add(&db, ExclusionKind::App, "slack").is_err(), "duplicates are case-insensitive");
+        assert!(
+            add(&db, ExclusionKind::App, "slack").is_err(),
+            "duplicates are case-insensitive"
+        );
         assert_eq!(list(&db).unwrap().len(), before + 1);
         assert!(remove(&db, e.id).unwrap());
         assert!(!remove(&db, e.id).unwrap());
@@ -365,6 +431,9 @@ mod tests {
         let f = PrivacyFilter::new(&list(&db).unwrap());
         assert!(f.excludes(&app("1Password")));
         assert!(f.excludes(&app("KeePassXC")));
-        assert!(f.excludes(&Candidate { window_title: Some("Mozilla Firefox Private Browsing"), ..Default::default() }));
+        assert!(f.excludes(&Candidate {
+            window_title: Some("Mozilla Firefox Private Browsing"),
+            ..Default::default()
+        }));
     }
 }

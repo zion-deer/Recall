@@ -90,7 +90,9 @@ fn backup_before_migration(path: &Path, version: u32) -> AppResult<()> {
     }
     let conn = Connection::open(path)?;
     conn.execute("VACUUM INTO ?1", [backup.to_string_lossy()])
-        .map_err(|e| AppError::Internal(format!("could not back up database before upgrade: {e}")))?;
+        .map_err(|e| {
+            AppError::Internal(format!("could not back up database before upgrade: {e}"))
+        })?;
     restrict_permissions(&backup, false);
     log::info!("backed up schema v{version} database before migrating");
     Ok(())
@@ -138,7 +140,9 @@ mod tests {
         let db = Database::open(&path).unwrap();
         let v: String = db
             .conn()
-            .query_row("SELECT value FROM settings WHERE key = 'k'", [], |r| r.get(0))
+            .query_row("SELECT value FROM settings WHERE key = 'k'", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(v, "\"v\"");
         assert!(db.file_size_bytes() > 0);

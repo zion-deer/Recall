@@ -26,20 +26,32 @@ impl AppState {
     }
 
     pub fn settings(&self) -> Settings {
-        self.config.settings.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.config
+            .settings
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Persists settings, then applies them to the running recorder.
     pub fn save_settings(&self, new: Settings) -> AppResult<Settings> {
         settings::save(&self.db, &new)?;
-        *self.config.settings.write().unwrap_or_else(|e| e.into_inner()) = new.clone();
+        *self
+            .config
+            .settings
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = new.clone();
         self.recorder.refresh();
         Ok(new)
     }
 
     pub fn reload_filter(&self) -> AppResult<PrivacyFilter> {
         let filter = PrivacyFilter::new(&privacy::list(&self.db)?);
-        *self.config.filter.write().unwrap_or_else(|e| e.into_inner()) = filter.clone();
+        *self
+            .config
+            .filter
+            .write()
+            .unwrap_or_else(|e| e.into_inner()) = filter.clone();
         self.recorder.refresh();
         Ok(filter)
     }

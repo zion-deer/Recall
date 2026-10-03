@@ -46,7 +46,14 @@ fn init(app: &AppHandle) -> Result<AppState, String> {
         platform.clone(),
         TauriNotifier(app.clone()),
     );
-    Ok(AppState { db, config, recorder, platform, data_dir, log_dir })
+    Ok(AppState {
+        db,
+        config,
+        recorder,
+        platform,
+        data_dir,
+        log_dir,
+    })
 }
 
 fn install_panic_hook() {
@@ -79,7 +86,9 @@ pub fn run() {
             tauri_plugin_log::Builder::new()
                 .targets([
                     Target::new(TargetKind::Stdout),
-                    Target::new(TargetKind::LogDir { file_name: Some("recall".into()) }),
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("recall".into()),
+                    }),
                 ])
                 .level(log::LevelFilter::Info)
                 .max_file_size(5 * 1024 * 1024)

@@ -49,3 +49,19 @@ impl Serialize for AppError {
 }
 
 pub type AppResult<T> = Result<T, AppError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_for_ipc_as_code_and_message() {
+        let v = serde_json::to_value(AppError::invalid("Bad range")).unwrap();
+        assert_eq!(
+            v,
+            serde_json::json!({ "code": "invalid_input", "message": "Bad range" })
+        );
+        let v = serde_json::to_value(AppError::NotFound("gone".into())).unwrap();
+        assert_eq!(v["code"], "not_found");
+    }
+}

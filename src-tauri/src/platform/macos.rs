@@ -35,7 +35,9 @@ impl PlatformAdapter for MacAdapter {
 
     fn idle_seconds(&self) -> Option<u64> {
         // SAFETY: pure query with constant arguments.
-        let secs = unsafe { CGEventSourceSecondsSinceLastEventType(COMBINED_SESSION_STATE, ANY_INPUT_EVENT) };
+        let secs = unsafe {
+            CGEventSourceSecondsSinceLastEventType(COMBINED_SESSION_STATE, ANY_INPUT_EVENT)
+        };
         (secs.is_finite() && secs >= 0.0).then_some(secs as u64)
     }
 

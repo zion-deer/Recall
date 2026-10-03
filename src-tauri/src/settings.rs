@@ -62,14 +62,20 @@ impl Settings {
     pub fn validate(&self) -> AppResult<()> {
         if let Some(days) = self.retention_days {
             if !RETENTION_CHOICES.contains(&days) {
-                return Err(AppError::invalid(format!("Unsupported retention period: {days} days")));
+                return Err(AppError::invalid(format!(
+                    "Unsupported retention period: {days} days"
+                )));
             }
         }
         if !(60..=3600).contains(&self.idle_threshold_secs) {
-            return Err(AppError::invalid("Idle threshold must be between 1 and 60 minutes"));
+            return Err(AppError::invalid(
+                "Idle threshold must be between 1 and 60 minutes",
+            ));
         }
         if !(1..=30).contains(&self.poll_interval_secs) {
-            return Err(AppError::invalid("Activity check interval must be between 1 and 30 seconds"));
+            return Err(AppError::invalid(
+                "Activity check interval must be between 1 and 30 seconds",
+            ));
         }
         if let Some(until) = self.paused_until {
             if !(0..=PAUSE_INDEFINITELY).contains(&until) {
@@ -124,7 +130,10 @@ mod tests {
     fn defaults_are_valid_and_private() {
         let s = Settings::default();
         s.validate().unwrap();
-        assert!(!s.recording_enabled, "recording must be opt-in during onboarding");
+        assert!(
+            !s.recording_enabled,
+            "recording must be opt-in during onboarding"
+        );
         assert!(!s.onboarding_completed);
     }
 
@@ -145,10 +154,22 @@ mod tests {
     #[test]
     fn rejects_invalid_values() {
         let bad = [
-            Settings { retention_days: Some(3), ..Default::default() },
-            Settings { idle_threshold_secs: 5, ..Default::default() },
-            Settings { poll_interval_secs: 0, ..Default::default() },
-            Settings { paused_until: Some(-1), ..Default::default() },
+            Settings {
+                retention_days: Some(3),
+                ..Default::default()
+            },
+            Settings {
+                idle_threshold_secs: 5,
+                ..Default::default()
+            },
+            Settings {
+                poll_interval_secs: 0,
+                ..Default::default()
+            },
+            Settings {
+                paused_until: Some(-1),
+                ..Default::default()
+            },
         ];
         let db = Database::open_in_memory().unwrap();
         for s in bad {
@@ -185,6 +206,11 @@ mod tests {
         assert!(!s.is_paused(2000));
         s.paused_until = Some(PAUSE_INDEFINITELY);
         assert!(s.is_paused(PAUSE_INDEFINITELY - 1));
-        assert!(Settings { paused_until: Some(i64::MAX), ..Default::default() }.validate().is_err());
+        assert!(Settings {
+            paused_until: Some(i64::MAX),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
     }
 }

@@ -51,7 +51,12 @@ pub struct RecorderStatus {
 
 impl RecorderStatus {
     fn new(state: RecorderState) -> Self {
-        Self { state, current_app: None, paused_until: None, message: None }
+        Self {
+            state,
+            current_app: None,
+            paused_until: None,
+            message: None,
+        }
     }
 }
 
@@ -117,7 +122,11 @@ impl SessionTracker {
                 file_path: None,
             },
         )?;
-        self.open = Some(OpenSession { id, key, last_flushed: now });
+        self.open = Some(OpenSession {
+            id,
+            key,
+            last_flushed: now,
+        });
         Ok(true)
     }
 
@@ -141,7 +150,10 @@ struct RecorderCore {
 
 impl RecorderCore {
     fn new(own_pid: u64) -> Self {
-        Self { tracker: SessionTracker::default(), own_pid }
+        Self {
+            tracker: SessionTracker::default(),
+            own_pid,
+        }
     }
 
     /// Takes one activity sample. Returns the resulting status and whether stored data changed.
@@ -160,13 +172,19 @@ impl RecorderCore {
         }
         if settings.is_paused(now) {
             let changed = self.tracker.close(db, now)?;
-            let status = RecorderStatus { paused_until: settings.paused_until, ..RecorderStatus::new(Paused) };
+            let status = RecorderStatus {
+                paused_until: settings.paused_until,
+                ..RecorderStatus::new(Paused)
+            };
             return Ok((status, changed));
         }
         if let Some(idle) = platform.idle_seconds() {
             if idle >= u64::from(settings.idle_threshold_secs) {
                 let idle_since = now - (idle as i64).saturating_mul(1000);
-                return Ok((RecorderStatus::new(Idle), self.tracker.close(db, idle_since)?));
+                return Ok((
+                    RecorderStatus::new(Idle),
+                    self.tracker.close(db, idle_since)?,
+                ));
             }
         }
 
@@ -174,7 +192,10 @@ impl RecorderCore {
             Ok(w) => w,
             Err(e) => {
                 let changed = self.tracker.close(db, now)?;
-                let status = RecorderStatus { message: Some(e.to_string()), ..RecorderStatus::new(Unavailable) };
+                let status = RecorderStatus {
+                    message: Some(e.to_string()),
+                    ..RecorderStatus::new(Unavailable)
+                };
                 return Ok((status, changed));
             }
         };
@@ -182,7 +203,10 @@ impl RecorderCore {
             return Ok((RecorderStatus::new(NoWindow), self.tracker.close(db, now)?));
         };
         if window.process_id == self.own_pid {
-            return Ok((RecorderStatus::new(RecallFocused), self.tracker.close(db, now)?));
+            return Ok((
+                RecorderStatus::new(RecallFocused),
+                self.tracker.close(db, now)?,
+            ));
         }
 
         // Exclusions are checked against the real title even when titles are
@@ -201,10 +225,17 @@ impl RecorderCore {
         let key = SessionKey {
             app_name: window.app_name.clone(),
             app_id: window.app_id,
-            title: if settings.window_titles_enabled { window.title } else { None },
+            title: if settings.window_titles_enabled {
+                window.title
+            } else {
+                None
+            },
         };
         let changed = self.tracker.observe(db, key, now)?;
-        let status = RecorderStatus { current_app: Some(window.app_name), ..RecorderStatus::new(Recording) };
+        let status = RecorderStatus {
+            current_app: Some(window.app_name),
+            ..RecorderStatus::new(Recording)
+        };
         Ok((status, changed))
     }
 }
@@ -237,11 +268,18 @@ impl RecorderHandle {
             .name("recall-recorder".into())
             .spawn(move || run(db, config, platform, notifier, rx, thread_status))
             .expect("failed to start recorder thread");
-        Self { tx, status, thread: Mutex::new(Some(thread)) }
+        Self {
+            tx,
+            status,
+            thread: Mutex::new(Some(thread)),
+        }
     }
 
     pub fn status(&self) -> RecorderStatus {
-        self.status.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.status
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn refresh(&self) {
@@ -275,8 +313,16 @@ fn run(
 
     loop {
         let now = now_ms();
-        let settings = config.settings.read().unwrap_or_else(|e| e.into_inner()).clone();
-        let filter = config.filter.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let settings = config
+            .settings
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let filter = config
+            .filter
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
 
         let mut changed = false;
         match core.tick(&db, &settings, &filter, platform.as_ref(), now) {
@@ -285,7 +331,11 @@ fn run(
                 let mut current = status.lock().unwrap_or_else(|e| e.into_inner());
                 if *current != new_status {
                     if current.state != new_status.state {
-                        log::info!("recorder state: {:?} -> {:?}", current.state, new_status.state);
+                        log::info!(
+                            "recorder state: {:?} -> {:?}",
+                            current.state,
+                            new_status.state
+                        );
                     }
                     *current = new_status.clone();
                     drop(current);
@@ -355,21 +405,34 @@ mod tests {
     }
 
     impl PlatformAdapter for FakePlatform {
-        fn platform_name(&self) -> &'static str { "test" }
+        fn platform_name(&self) -> &'static str {
+            "test"
+        }
         fn active_window(&self) -> AppResult<Option<ActiveWindow>> {
             if *self.fail.lock().unwrap() {
                 return Err(AppError::Unsupported("no display".into()));
             }
             Ok(self.window.lock().unwrap().clone())
         }
-        fn idle_seconds(&self) -> Option<u64> { *self.idle.lock().unwrap() }
-        fn permissions(&self) -> Vec<PermissionInfo> { vec![] }
-        fn request_permission(&self, _: &str) -> AppResult<()> { Ok(()) }
-        fn reveal_folder(&self, _: &Path) -> AppResult<()> { Ok(()) }
+        fn idle_seconds(&self) -> Option<u64> {
+            *self.idle.lock().unwrap()
+        }
+        fn permissions(&self) -> Vec<PermissionInfo> {
+            vec![]
+        }
+        fn request_permission(&self, _: &str) -> AppResult<()> {
+            Ok(())
+        }
+        fn reveal_folder(&self, _: &Path) -> AppResult<()> {
+            Ok(())
+        }
     }
 
     fn enabled() -> Settings {
-        Settings { recording_enabled: true, ..Settings::default() }
+        Settings {
+            recording_enabled: true,
+            ..Settings::default()
+        }
     }
 
     fn events(db: &Database) -> Vec<crate::memory::MemoryEvent> {
@@ -393,7 +456,10 @@ mod tests {
         assert!(changed);
 
         let (_, changed) = core.tick(&db, &s, &f, &p, 2_000).unwrap();
-        assert!(!changed, "same window does not write before the flush interval");
+        assert!(
+            !changed,
+            "same window does not write before the flush interval"
+        );
         let (_, changed) = core.tick(&db, &s, &f, &p, 20_000).unwrap();
         assert!(changed, "flushes end time periodically");
 
@@ -419,20 +485,34 @@ mod tests {
         p.focus("Code", "main.rs", 10);
 
         let off = Settings::default();
-        assert_eq!(core.tick(&db, &off, &f, &p, 0).unwrap().0.state, RecorderState::Off);
+        assert_eq!(
+            core.tick(&db, &off, &f, &p, 0).unwrap().0.state,
+            RecorderState::Off
+        );
         assert!(events(&db).is_empty());
 
         let s = enabled();
         core.tick(&db, &s, &f, &p, 1_000).unwrap();
-        let paused = Settings { paused_until: Some(100_000), ..enabled() };
+        let paused = Settings {
+            paused_until: Some(100_000),
+            ..enabled()
+        };
         let (st, _) = core.tick(&db, &paused, &f, &p, 5_000).unwrap();
         assert_eq!(st.state, RecorderState::Paused);
         assert_eq!(st.paused_until, Some(100_000));
-        assert_eq!(events(&db)[0].ended_at, 5_000, "pausing closes the open session");
+        assert_eq!(
+            events(&db)[0].ended_at,
+            5_000,
+            "pausing closes the open session"
+        );
         core.tick(&db, &paused, &f, &p, 50_000).unwrap();
         assert_eq!(events(&db).len(), 1);
 
-        assert_eq!(core.tick(&db, &paused, &f, &p, 100_000).unwrap().0.state, RecorderState::Recording, "pause expires");
+        assert_eq!(
+            core.tick(&db, &paused, &f, &p, 100_000).unwrap().0.state,
+            RecorderState::Recording,
+            "pause expires"
+        );
         assert_eq!(events(&db).len(), 2);
     }
 
@@ -457,17 +537,39 @@ mod tests {
         let p = FakePlatform::default();
         let mut core = RecorderCore::new(42);
         let f = PrivacyFilter::new(&[
-            Exclusion { id: 1, kind: ExclusionKind::App, pattern: "1Password".into(), created_at: 0 },
-            Exclusion { id: 2, kind: ExclusionKind::Title, pattern: "incognito".into(), created_at: 0 },
+            Exclusion {
+                id: 1,
+                kind: ExclusionKind::App,
+                pattern: "1Password".into(),
+                created_at: 0,
+            },
+            Exclusion {
+                id: 2,
+                kind: ExclusionKind::Title,
+                pattern: "incognito".into(),
+                created_at: 0,
+            },
         ]);
-        let s = Settings { window_titles_enabled: false, ..enabled() };
+        let s = Settings {
+            window_titles_enabled: false,
+            ..enabled()
+        };
 
         p.focus("1Password", "Vault", 10);
-        assert_eq!(core.tick(&db, &s, &f, &p, 0).unwrap().0.state, RecorderState::Excluded);
+        assert_eq!(
+            core.tick(&db, &s, &f, &p, 0).unwrap().0.state,
+            RecorderState::Excluded
+        );
         p.focus("Chrome", "New Tab (Incognito)", 11);
-        assert_eq!(core.tick(&db, &s, &f, &p, 1).unwrap().0.state, RecorderState::Excluded);
+        assert_eq!(
+            core.tick(&db, &s, &f, &p, 1).unwrap().0.state,
+            RecorderState::Excluded
+        );
         p.focus("Recall", "Recall", 42);
-        assert_eq!(core.tick(&db, &s, &f, &p, 2).unwrap().0.state, RecorderState::RecallFocused);
+        assert_eq!(
+            core.tick(&db, &s, &f, &p, 2).unwrap().0.state,
+            RecorderState::RecallFocused
+        );
         assert!(events(&db).is_empty());
 
         p.focus("Chrome", "Bank statement", 11);
@@ -499,7 +601,9 @@ mod tests {
         let p = FakePlatform::default();
         *p.fail.lock().unwrap() = true;
         let mut core = RecorderCore::new(1);
-        let (st, _) = core.tick(&db, &enabled(), &PrivacyFilter::default(), &p, 0).unwrap();
+        let (st, _) = core
+            .tick(&db, &enabled(), &PrivacyFilter::default(), &p, 0)
+            .unwrap();
         assert_eq!(st.state, RecorderState::Unavailable);
         assert!(st.message.is_some());
     }

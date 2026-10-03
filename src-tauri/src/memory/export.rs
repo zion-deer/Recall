@@ -25,9 +25,13 @@ pub struct ExportResult {
 pub fn validate_destination(path: &str) -> AppResult<PathBuf> {
     let p = Path::new(path);
     if !p.is_absolute() {
-        return Err(AppError::invalid("Choose a full location to save the export"));
+        return Err(AppError::invalid(
+            "Choose a full location to save the export",
+        ));
     }
-    if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+    if p.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
         return Err(AppError::invalid("Export location cannot contain '..'"));
     }
     let is_json = p
@@ -54,7 +58,10 @@ pub fn export_to(db: &Database, path: &str, app_version: &str) -> AppResult<Expo
     match result {
         Ok(count) => {
             std::fs::rename(&tmp, &dest)?;
-            Ok(ExportResult { path: dest.to_string_lossy().into_owned(), event_count: count })
+            Ok(ExportResult {
+                path: dest.to_string_lossy().into_owned(),
+                event_count: count,
+            })
         }
         Err(e) => {
             let _ = std::fs::remove_file(&tmp);
@@ -119,7 +126,7 @@ mod tests {
         assert_eq!(v["format"], EXPORT_FORMAT);
         assert_eq!(v["events"].as_array().unwrap().len(), 2);
         assert_eq!(v["events"][0]["windowTitle"], "a \"quoted\" title");
-        assert!(v["exclusions"].as_array().unwrap().len() > 0);
+        assert!(!v["exclusions"].as_array().unwrap().is_empty());
         assert!(!dir.path().join("export.json.partial").exists());
     }
 

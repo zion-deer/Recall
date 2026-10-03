@@ -91,7 +91,11 @@ pub fn pause_recording(
     let until = match minutes {
         None => PAUSE_INDEFINITELY,
         Some(m) if (1..=MAX_PAUSE_MINUTES).contains(&m) => now_ms() + i64::from(m) * 60_000,
-        Some(_) => return Err(AppError::invalid("Pause must be between 1 minute and 24 hours")),
+        Some(_) => {
+            return Err(AppError::invalid(
+                "Pause must be between 1 minute and 24 hours",
+            ))
+        }
     };
     let saved = state.set_paused_until(Some(until))?;
     settings_changed(&app, &saved);
@@ -184,7 +188,10 @@ pub fn add_exclusion(
         state.recorder.reset();
         memory_changed(&app);
     }
-    Ok(AddExclusionResult { exclusion, removed_memories: removed })
+    Ok(AddExclusionResult {
+        exclusion,
+        removed_memories: removed,
+    })
 }
 
 #[tauri::command]
@@ -222,4 +229,53 @@ pub fn open_data_folder(state: State<'_, AppState>) -> AppResult<()> {
 #[tauri::command]
 pub fn open_log_folder(state: State<'_, AppState>) -> AppResult<()> {
     state.platform.reveal_folder(&state.log_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::memory::privacy::ExclusionKind;
+    use crate::memory::store::EventQuery;
+    use crate::settings::{Settings, PAUSE_INDEFINITELY};
+
+    #[test]
+    fn event_query_accepts_camel_case_and_nulls() {
+        let q: EventQuery =
+            serde_json::from_str(r#"{"start":1,"end":2,"appName":"Code","kind":null,"limit":10}"#)
+                .unwrap();
+        assert_eq!(q.app_name.as_deref(), Some("Code"));
+        assert_eq!(q.limit, Some(10));
+        let empty: EventQuery = serde_json::from_str("{}").unwrap();
+        assert!(empty.start.is_none());
+    }
+
+    #[test]
+    fn event_query_rejects_wrong_types() {
+        assert!(serde_json::from_str::<EventQuery>(r#"{"limit":-1}"#).is_err());
+        assert!(serde_json::from_str::<EventQuery>(r#"{"start":"yesterday"}"#).is_err());
+    }
+
+    #[test]
+    fn exclusion_kind_is_a_closed_set() {
+        assert_eq!(
+            serde_json::from_str::<ExclusionKind>(r#""website""#).unwrap(),
+            ExclusionKind::Website
+        );
+        assert!(serde_json::from_str::<ExclusionKind>(r#""shell""#).is_err());
+    }
+
+    #[test]
+    fn settings_round_trip_through_javascript_numbers() {
+        let s = Settings {
+            paused_until: Some(PAUSE_INDEFINITELY),
+            ..Settings::default()
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        // JavaScript parses numbers as f64; the sentinel must survive unchanged.
+        let as_f64: f64 = serde_json::from_str::<serde_json::Value>(&json).unwrap()["pausedUntil"]
+            .as_f64()
+            .unwrap();
+        assert_eq!(as_f64 as i64, PAUSE_INDEFINITELY);
+        let back: Settings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, s);
+    }
 }
