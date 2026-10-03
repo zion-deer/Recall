@@ -14,7 +14,7 @@ Publish the tag:
 git push --follow-tags
 ```
 
-`.github/workflows/release.yml` runs on every `v*` tag. It builds the Windows and macOS installers with `tauri-action`, creates updater artifacts, and publishes a GitHub Release. Users do not clone the repository or build Recall.
+`.github/workflows/release.yml` runs on every `v*` tag. It builds a Windows x64 installer and an Apple Silicon macOS installer with `tauri-action`, creates updater artifacts, and publishes a GitHub Release. Intel Macs are not included in this build. Users do not clone the repository or build Recall.
 
 ## Updater
 

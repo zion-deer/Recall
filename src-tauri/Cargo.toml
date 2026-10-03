@@ -34,7 +34,7 @@ sha2 = "0.10.9"
 reqwest = { version = "0.13.3", default-features = false, features = ["stream", "rustls"] }
 chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
 tauri-plugin-updater = "2"
-llama-cpp-2 = "0.1.158"
+llama-cpp-2 = { version = "0.1.158", default-features = false, features = ["common"] }
 futures-util = "0.3"
 tokio = { version = "1.53.2", features = ["fs", "io-util"] }
 
