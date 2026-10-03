@@ -8,7 +8,33 @@ permissions:
   contents: write
 
 jobs:
+  verify-signing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Write updater private key for verification
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY repository secret is not set."
+            exit 1
+          fi
+          install -m 600 /dev/null "$RUNNER_TEMP/recall-updater.key"
+          printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$RUNNER_TEMP/recall-updater.key"
+          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/recall-updater.key" >> "$GITHUB_ENV"
+      - name: Verify updater signing password
+        env:
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node scripts/verify-tauri-signing.mjs
+
   build:
+    needs: verify-signing
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +55,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      - name: Prepare updater signing key
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/recall-updater.key"
+          printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$RUNNER_TEMP/recall-updater.key"
+          PASS=$(python3 -c "import os; print(os.environ.get('TAURI_SIGNING_PRIVATE_KEY_PASSWORD','').rstrip('\\r\\n '))")
+          {
+            echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/recall-updater.key"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$PASS"
+          } >> "$GITHUB_ENV"
 
       - name: Import Windows signing certificate
         if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
@@ -69,8 +108,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Recall ${{ github.ref_name }}"
