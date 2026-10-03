@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-delete-events-in-range"
+description = "Enables the delete_events_in_range command without any pre-configured scope."
+commands.allow = ["delete_events_in_range"]
+
+[[permission]]
+identifier = "deny-delete-events-in-range"
+description = "Denies the delete_events_in_range command without any pre-configured scope."
+commands.deny = ["delete_events_in_range"]

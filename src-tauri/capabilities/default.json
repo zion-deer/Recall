@@ -1,0 +1,35 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for Recall's main window. Only the bundled UI can call these.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:app:allow-version",
+    "dialog:allow-save",
+    "allow-get-app-info",
+    "allow-get-settings",
+    "allow-update-settings",
+    "allow-pause-recording",
+    "allow-resume-recording",
+    "allow-get-recorder-status",
+    "allow-list-events",
+    "allow-get-event",
+    "allow-get-app-usage",
+    "allow-get-memory-stats",
+    "allow-delete-event",
+    "allow-delete-events-in-range",
+    "allow-delete-all-memories",
+    "allow-list-exclusions",
+    "allow-add-exclusion",
+    "allow-remove-exclusion",
+    "allow-export-data",
+    "allow-get-permissions",
+    "allow-request-permission",
+    "allow-open-data-folder",
+    "allow-open-log-folder"
+  ]
+}
