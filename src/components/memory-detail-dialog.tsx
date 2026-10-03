@@ -1,0 +1,120 @@
+import { EyeOff, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { AppAvatar } from "@/components/app-avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { notifyError } from "@/hooks/use-recall";
+import { api, type MemoryEvent } from "@/lib/api";
+import { formatDateTime, formatDuration } from "@/lib/format";
+
+const KIND_LABELS: Record<string, string> = { app_activity: "App activity" };
+
+export function MemoryDetailDialog({
+  event,
+  onClose,
+}: {
+  event: MemoryEvent | null;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function remove() {
+    if (!event) return;
+    setBusy(true);
+    try {
+      await api.deleteEvent(event.id);
+      toast.success("Memory deleted");
+      onClose();
+    } catch (e) {
+      notifyError(e, "Couldn't delete this memory");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function excludeApp() {
+    if (!event?.appName) return;
+    setBusy(true);
+    try {
+      const { removedMemories } = await api.addExclusion("app", event.appName);
+      toast.success(`Recall will no longer record ${event.appName}`, {
+        description: `${removedMemories} existing ${removedMemories === 1 ? "memory was" : "memories were"} deleted.`,
+      });
+      onClose();
+    } catch (e) {
+      notifyError(e, "Couldn't exclude this app");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={event !== null} onOpenChange={(open) => !open && onClose()}>
+      {event && (
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <AppAvatar name={event.appName} className="size-10 text-base" />
+              <div className="min-w-0">
+                <DialogTitle className="truncate">{event.appName ?? "Unknown app"}</DialogTitle>
+                <DialogDescription>{KIND_LABELS[event.kind] ?? event.kind}</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <dl className="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-2.5 text-sm">
+            <Field label="Window">{event.windowTitle ?? <Muted>Not recorded</Muted>}</Field>
+            {event.url && <Field label="Website">{event.url}</Field>}
+            {event.filePath && <Field label="File">{event.filePath}</Field>}
+            <Field label="Started">{formatDateTime(event.startedAt)}</Field>
+            <Field label="Ended">{formatDateTime(event.endedAt)}</Field>
+            <Field label="Duration">{formatDuration(event.endedAt - event.startedAt)}</Field>
+            {event.appId && (
+              <Field label="Application">
+                <span className="font-mono text-xs">{event.appId}</span>
+              </Field>
+            )}
+          </dl>
+
+          <DialogFooter className="gap-2 sm:justify-between">
+            {event.appName ? (
+              <Button variant="ghost" onClick={excludeApp} disabled={busy}>
+                <EyeOff /> Never record {truncate(event.appName, 22)}
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button variant="destructive" onClick={remove} disabled={busy}>
+              <Trash2 /> Delete memory
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words">{children}</dd>
+    </>
+  );
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return <span className="text-muted-foreground italic">{children}</span>;
+}
+
+function truncate(s: string, n: number) {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}

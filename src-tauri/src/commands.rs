@@ -11,7 +11,7 @@ use crate::memory::recorder::RecorderStatus;
 use crate::memory::store::{self, AppUsage, EventQuery, MemoryStats};
 use crate::memory::MemoryEvent;
 use crate::platform::PermissionInfo;
-use crate::settings::Settings;
+use crate::settings::{Settings, PAUSE_INDEFINITELY};
 use crate::state::AppState;
 use crate::storage::{migrations, now_ms};
 
@@ -89,7 +89,7 @@ pub fn pause_recording(
     minutes: Option<u32>,
 ) -> AppResult<Settings> {
     let until = match minutes {
-        None => i64::MAX,
+        None => PAUSE_INDEFINITELY,
         Some(m) if (1..=MAX_PAUSE_MINUTES).contains(&m) => now_ms() + i64::from(m) * 60_000,
         Some(_) => return Err(AppError::invalid("Pause must be between 1 minute and 24 hours")),
     };

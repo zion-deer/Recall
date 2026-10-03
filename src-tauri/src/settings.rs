@@ -10,6 +10,10 @@ use crate::storage::{now_ms, Database};
 
 const SETTINGS_KEY: &str = "user_settings";
 
+/// `paused_until` value meaning "until the user resumes". Kept within
+/// JavaScript's safe integer range so it survives the IPC round trip.
+pub const PAUSE_INDEFINITELY: i64 = 9_007_199_254_740_991;
+
 /// Allowed memory retention choices, in days. `None` means forever.
 pub const RETENTION_CHOICES: &[u32] = &[7, 30, 180, 365];
 
@@ -27,7 +31,7 @@ pub struct Settings {
     pub onboarding_completed: bool,
     /// Master switch for all memory collection.
     pub recording_enabled: bool,
-    /// Unix ms until which recording is paused. `Some(i64::MAX)` = until resumed.
+    /// Unix ms until which recording is paused. See [`PAUSE_INDEFINITELY`].
     pub paused_until: Option<i64>,
     pub app_activity_enabled: bool,
     /// When off, only the application name is stored, never window titles.
@@ -68,7 +72,7 @@ impl Settings {
             return Err(AppError::invalid("Activity check interval must be between 1 and 30 seconds"));
         }
         if let Some(until) = self.paused_until {
-            if until < 0 {
+            if !(0..=PAUSE_INDEFINITELY).contains(&until) {
                 return Err(AppError::invalid("Invalid pause time"));
             }
         }
@@ -179,7 +183,8 @@ mod tests {
         s.paused_until = Some(2000);
         assert!(s.is_paused(1000));
         assert!(!s.is_paused(2000));
-        s.paused_until = Some(i64::MAX);
-        assert!(s.is_paused(i64::MAX - 1));
+        s.paused_until = Some(PAUSE_INDEFINITELY);
+        assert!(s.is_paused(PAUSE_INDEFINITELY - 1));
+        assert!(Settings { paused_until: Some(i64::MAX), ..Default::default() }.validate().is_err());
     }
 }

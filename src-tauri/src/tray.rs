@@ -7,6 +7,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::commands::EVENT_SETTINGS_CHANGED;
 use crate::memory::recorder::{RecorderState, RecorderStatus};
+use crate::settings::PAUSE_INDEFINITELY;
 use crate::state::AppState;
 use crate::storage::now_ms;
 
@@ -60,7 +61,7 @@ pub fn update(menu: &TrayMenu, status: &RecorderStatus) {
 fn toggle_pause(app: &AppHandle) {
     let state = app.state::<AppState>();
     let paused = state.settings().is_paused(now_ms());
-    let result = state.set_paused_until(if paused { None } else { Some(i64::MAX) });
+    let result = state.set_paused_until(if paused { None } else { Some(PAUSE_INDEFINITELY) });
     match result {
         Ok(s) => {
             let _ = app.emit(EVENT_SETTINGS_CHANGED, &s);
