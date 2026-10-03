@@ -42,15 +42,33 @@ jobs:
           Import-PfxCertificate -FilePath cert.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force)
           Remove-Item cert.pfx
 
+      - name: Enable Apple signing only when explicitly turned on
+        if: runner.os == 'macOS' && vars.ENABLE_APPLE_SIGNING == 'true'
+        run: |
+          {
+            echo "APPLE_CERTIFICATE<<EOF"
+            echo "${{ secrets.APPLE_CERTIFICATE }}"
+            echo "EOF"
+            echo "APPLE_CERTIFICATE_PASSWORD<<EOF"
+            echo "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+            echo "EOF"
+            echo "APPLE_SIGNING_IDENTITY<<EOF"
+            echo "${{ secrets.APPLE_SIGNING_IDENTITY }}"
+            echo "EOF"
+            echo "APPLE_ID<<EOF"
+            echo "${{ secrets.APPLE_ID }}"
+            echo "EOF"
+            echo "APPLE_PASSWORD<<EOF"
+            echo "${{ secrets.APPLE_PASSWORD }}"
+            echo "EOF"
+            echo "APPLE_TEAM_ID<<EOF"
+            echo "${{ secrets.APPLE_TEAM_ID }}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_CERTIFICATE: ${{ vars.ENABLE_APPLE_SIGNING == 'true' && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ vars.ENABLE_APPLE_SIGNING == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ vars.ENABLE_APPLE_SIGNING == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_ID: ${{ vars.ENABLE_APPLE_SIGNING == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ vars.ENABLE_APPLE_SIGNING == 'true' && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ vars.ENABLE_APPLE_SIGNING == 'true' && secrets.APPLE_TEAM_ID || '' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
