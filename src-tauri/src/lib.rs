@@ -124,6 +124,8 @@ pub fn run() {
             }
             let update_handle = handle.clone();
             tauri::async_runtime::spawn(async move {
+                // Let the window and first memory query finish before the update request.
+                tokio::time::sleep(std::time::Duration::from_secs(8)).await;
                 match updates::check(&update_handle).await {
                     Ok(Some(update)) => {
                         let _ = update_handle.emit("update:available", update);

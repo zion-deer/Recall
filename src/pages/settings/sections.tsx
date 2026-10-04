@@ -11,7 +11,7 @@ import { describePause, formatBytes, formatDayLabel, retentionLabel } from "@/li
 import { cn } from "@/lib/utils";
 import { DeleteAllButton, ExportButton } from "./data-actions";
 import { ExclusionsDialog, type ExclusionsDialogConfig } from "./exclusions-dialog";
-import { Group, Row, Section, SoonBadge, ToggleRow } from "./parts";
+import { Group, Row, Section, ToggleRow } from "./parts";
 
 function ChoiceSelect<T extends string | number | null>({
   label,
@@ -278,11 +278,10 @@ export function PrivacySection() {
           onChange={(v) => set({ browserActivityEnabled: v })}
         />
         <ToggleRow
-          label={<>Screenshots<SoonBadge /></>}
-          description="Periodic screenshots stored only on this computer, with their own retention period."
-          checked={false}
-          onChange={() => {}}
-          disabled
+          label="Screenshots"
+          description="Periodic screenshots stored only on this computer, with their own retention period. Interval and cleanup are under Screenshots."
+          checked={s.screenshotsEnabled}
+          onChange={(v) => set({ screenshotsEnabled: v })}
         />
       </Group>
       {s.browserActivityEnabled && <BrowserChoices />}

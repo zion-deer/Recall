@@ -18,7 +18,7 @@ const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
 export function Logo({ className }: { className?: string }) {
-  return <img src="/logo.png" alt="" className={className} />;
+  return <img src="/logo.png" alt="" className={cn("object-contain", className)} />;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {

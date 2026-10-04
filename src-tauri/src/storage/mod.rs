@@ -78,7 +78,9 @@ fn configure(conn: &Connection) -> AppResult<()> {
          PRAGMA synchronous = NORMAL;
          PRAGMA foreign_keys = ON;
          PRAGMA secure_delete = ON;
-         PRAGMA busy_timeout = 5000;",
+         PRAGMA busy_timeout = 5000;
+         PRAGMA cache_size = -8000;
+         PRAGMA temp_store = MEMORY;",
     )?;
     Ok(())
 }

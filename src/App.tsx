@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { AppShell, Logo } from "@/components/app-shell";
 import { PermissionPrompt } from "@/components/permission-prompt";
@@ -9,12 +9,13 @@ import { NavigationContext, type Page, type SettingsSection } from "@/hooks/use-
 import { RecallProvider, useRecall } from "@/hooks/use-recall";
 import { useAppliedTheme } from "@/hooks/use-theme";
 import { api, hasBackend, toRecallError, type UpdateOffer } from "@/lib/api";
-import { AskPage } from "@/pages/ask";
 import { HomePage } from "@/pages/home";
-import { MemoryPage } from "@/pages/memory";
 import { Onboarding } from "@/pages/onboarding";
-import { SearchPage } from "@/pages/search";
-import { SettingsPage } from "@/pages/settings";
+
+const AskPage = lazy(() => import("@/pages/ask").then((m) => ({ default: m.AskPage })));
+const MemoryPage = lazy(() => import("@/pages/memory").then((m) => ({ default: m.MemoryPage })));
+const SearchPage = lazy(() => import("@/pages/search").then((m) => ({ default: m.SearchPage })));
+const SettingsPage = lazy(() => import("@/pages/settings").then((m) => ({ default: m.SettingsPage })));
 
 const PAGE_ORDER: Page[] = ["home", "memory", "search", "ask", "settings"];
 
@@ -83,11 +84,13 @@ function Recall() {
           )}
           <PermissionPrompt />
           <AppShell>
-            {page === "home" && <HomePage />}
-            {page === "memory" && <MemoryPage />}
-            {page === "search" && <SearchPage />}
-            {page === "ask" && <AskPage />}
-            {page === "settings" && <SettingsPage />}
+            <Suspense fallback={<p className="p-8 text-sm text-muted-foreground">Loading…</p>}>
+              {page === "home" && <HomePage />}
+              {page === "memory" && <MemoryPage />}
+              {page === "search" && <SearchPage />}
+              {page === "ask" && <AskPage />}
+              {page === "settings" && <SettingsPage />}
+            </Suspense>
           </AppShell>
         </NavigationContext.Provider>
       ) : (
