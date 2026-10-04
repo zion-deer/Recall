@@ -8,8 +8,10 @@ permissions:
   contents: write
 
 jobs:
-  verify-signing:
+  check-signing:
     runs-on: ubuntu-latest
+    outputs:
+      updater: ${{ steps.signing.outputs.updater }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,32 +19,37 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Write updater private key for verification
+      - name: Try updater signing credentials
+        id: signing
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
+          set +e
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "TAURI_SIGNING_PRIVATE_KEY repository secret is not set."
-            exit 1
+            echo "No TAURI_SIGNING_PRIVATE_KEY — release will ship installers only (no in-app auto-update)."
+            echo "updater=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           install -m 600 /dev/null "$RUNNER_TEMP/recall-updater.key"
           printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$RUNNER_TEMP/recall-updater.key"
-          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/recall-updater.key" >> "$GITHUB_ENV"
-      - name: Verify updater signing password
-        env:
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: node scripts/verify-tauri-signing.mjs
+          export TAURI_SIGNING_PRIVATE_KEY_PATH="$RUNNER_TEMP/recall-updater.key"
+          if node scripts/verify-tauri-signing.mjs; then
+            echo "Updater signing OK — release will include signed auto-update artifacts."
+            echo "updater=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Updater signing failed — release will ship installers only. Fix TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, then cut a new tag."
+            echo "updater=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
-    needs: verify-signing
+    needs: check-signing
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
-            args: --config src-tauri/tauri.release.conf.json
           - os: macos-latest
-            args: --config src-tauri/tauri.release.conf.json
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +64,7 @@ jobs:
       - run: npm ci
 
       - name: Prepare updater signing key
+        if: needs.check-signing.outputs.updater == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -105,7 +113,9 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_ENV"
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build and publish (signed auto-update)
+        if: needs.check-signing.outputs.updater == 'true'
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
@@ -116,4 +126,17 @@ jobs:
           releaseBody: "See CHANGELOG.md for details."
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          args: --config src-tauri/tauri.release.conf.json
+
+      - name: Build and publish (installers only)
+        if: needs.check-signing.outputs.updater != 'true'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Recall ${{ github.ref_name }}"
+          releaseBody: "Installers only (auto-update signing was skipped). See CHANGELOG.md."
+          releaseDraft: false
+          prerelease: false
+          args: ""
