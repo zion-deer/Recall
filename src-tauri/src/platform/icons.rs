@@ -97,6 +97,7 @@ fn app_bundle(path: &Path) -> Option<&Path> {
 }
 
 /// Apple `.icns` files often embed PNG images. Returns the largest one.
+#[cfg(any(test, target_os = "macos"))]
 pub fn largest_embedded_png(bytes: &[u8]) -> Option<Vec<u8>> {
     const SIG: &[u8] = b"\x89PNG\r\n\x1a\n";
     const IEND: &[u8] = b"IEND";
@@ -223,6 +224,7 @@ fn desktop_field(text: &str, key: &str) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
+#[cfg(target_os = "linux")]
 fn read_icon_file(path: &Path) -> Option<(Vec<u8>, &'static str, &'static str)> {
     let bytes = fs::read(path).ok()?;
     if bytes.is_empty() {
