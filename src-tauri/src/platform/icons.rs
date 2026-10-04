@@ -120,9 +120,16 @@ pub fn largest_embedded_png(bytes: &[u8]) -> Option<Vec<u8>> {
 }
 
 #[cfg(target_os = "linux")]
-fn linux_icon(app_name: &str, app_id: Option<&str>) -> Option<(Vec<u8>, &'static str, &'static str)> {
+fn linux_icon(
+    app_name: &str,
+    app_id: Option<&str>,
+) -> Option<(Vec<u8>, &'static str, &'static str)> {
     let stem = app_id
-        .and_then(|id| Path::new(id).file_stem().map(|s| s.to_string_lossy().into_owned()))
+        .and_then(|id| {
+            Path::new(id)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+        })
         .unwrap_or_else(|| app_name.to_string());
     let icon_name = desktop_icon_name(&stem).unwrap_or_else(|| stem.clone());
     let absolute = std::path::PathBuf::from(&icon_name);
@@ -168,13 +175,17 @@ fn desktop_icon_name(stem: &str) -> Option<String> {
         roots.push(std::path::PathBuf::from(home).join(".local/share/applications"));
     }
     for root in roots {
-        let Ok(entries) = fs::read_dir(&root) else { continue };
+        let Ok(entries) = fs::read_dir(&root) else {
+            continue;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) != Some("desktop") {
                 continue;
             }
-            let Ok(text) = fs::read_to_string(&path) else { continue };
+            let Ok(text) = fs::read_to_string(&path) else {
+                continue;
+            };
             if !desktop_matches(&text, stem) {
                 continue;
             }
@@ -190,9 +201,13 @@ fn desktop_icon_name(stem: &str) -> Option<String> {
 fn desktop_matches(text: &str, stem: &str) -> bool {
     let needle = stem.to_lowercase();
     for line in text.lines() {
-        let Some(rest) = line.strip_prefix("Exec=") else { continue };
+        let Some(rest) = line.strip_prefix("Exec=") else {
+            continue;
+        };
         let token = rest.split_whitespace().next().unwrap_or("");
-        let base = Path::new(token).file_stem().map(|s| s.to_string_lossy().to_lowercase());
+        let base = Path::new(token)
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_lowercase());
         if base.as_deref() == Some(needle.as_str()) || token.to_lowercase().contains(&needle) {
             return true;
         }

@@ -349,11 +349,7 @@ pub fn get_app_icon(
             return None;
         }
     }
-    crate::platform::icons::data_url(
-        &state.data_dir.join("app-icons"),
-        name,
-        app_id.as_deref(),
-    )
+    crate::platform::icons::data_url(&state.data_dir.join("app-icons"), name, app_id.as_deref())
 }
 
 #[tauri::command]
