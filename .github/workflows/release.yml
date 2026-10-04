@@ -65,17 +65,11 @@ jobs:
 
       - name: Prepare updater signing key
         if: needs.check-signing.outputs.updater == 'true'
+        shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          install -m 600 /dev/null "$RUNNER_TEMP/recall-updater.key"
-          node scripts/write-updater-signing-key.mjs "$RUNNER_TEMP/recall-updater.key"
-          PASS=$(python3 -c "import os; print(os.environ.get('TAURI_SIGNING_PRIVATE_KEY_PASSWORD','').rstrip('\\r\\n '))")
-          {
-            echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/recall-updater.key"
-            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$PASS"
-          } >> "$GITHUB_ENV"
+        run: bash scripts/export-updater-signing-env.sh
 
       - name: Import Windows signing certificate
         if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
@@ -118,6 +112,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ""
           TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
