@@ -27,11 +27,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set +e
-          if [ "${{ vars.RECALL_SIGNED_UPDATES }}" != "true" ]; then
-            echo "RECALL_SIGNED_UPDATES is not true — shipping installers only. See docs/RESET-SIGNING.md."
-            echo "updater=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "No TAURI_SIGNING_PRIVATE_KEY — release will ship installers only (no in-app auto-update)."
             echo "updater=false" >> "$GITHUB_OUTPUT"
@@ -75,7 +70,12 @@ jobs:
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: bash scripts/export-updater-signing-env.sh
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          bash scripts/export-updater-signing-env.sh
+          node scripts/write-updater-password.mjs "$RUNNER_TEMP/updater.pass"
+          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD_FILE=$RUNNER_TEMP/updater.pass" >> "$GITHUB_ENV"
+          npm pkg set scripts.tauri="node scripts/tauri-release-wrapper.mjs"
 
       - name: Import Windows signing certificate
         if: runner.os == 'Windows' && env.WINDOWS_CERTIFICATE != ''
@@ -119,7 +119,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY_PATH: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PATH }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD_FILE: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD_FILE }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Recall ${{ github.ref_name }}"
