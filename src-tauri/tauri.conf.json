@@ -41,7 +41,7 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "targets": ["nsis", "msi", "dmg", "app"],
     "category": "Productivity",
     "shortDescription": "A private memory for your computer",

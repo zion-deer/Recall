@@ -40,9 +40,9 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            args: ""
+            args: --config src-tauri/tauri.release.conf.json
           - os: macos-latest
-            args: ""
+            args: --config src-tauri/tauri.release.conf.json
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
