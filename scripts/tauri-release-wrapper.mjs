@@ -11,8 +11,12 @@ const require = createRequire(import.meta.url);
 const tauriJs = require.resolve("@tauri-apps/cli/tauri.js");
 
 const passFile = process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD_FILE;
+const keyPath = process.env.TAURI_SIGNING_PRIVATE_KEY_PATH;
 const env = { ...process.env };
-delete env.TAURI_SIGNING_PRIVATE_KEY;
+
+if (keyPath) {
+  env.TAURI_SIGNING_PRIVATE_KEY = readFileSync(keyPath, "utf8").replace(/\n+$/, "\n");
+}
 
 if (passFile) {
   let password = readFileSync(passFile);
