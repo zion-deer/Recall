@@ -50,9 +50,9 @@ ls /tmp/probe.bin.sig
 
 If `.sig` exists, secrets are ready for CI.
 
-## 5. Ship installers (no signed updater yet)
+## 5. Ship a signed release
 
-Leave **Settings → Secrets and variables → Actions → Variables** empty (do **not** set `RECALL_SIGNED_UPDATES` yet).
+Signing is on automatically when `TAURI_SIGNING_PRIVATE_KEY` verifies. You do not set `RECALL_SIGNED_UPDATES`.
 
 Cut a release:
 
