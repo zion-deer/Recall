@@ -45,7 +45,7 @@ fn to_data_url(bytes: &[u8], mime: &str) -> String {
 fn locate(app_name: &str, app_id: Option<&str>) -> Option<(Vec<u8>, &'static str, &'static str)> {
     #[cfg(target_os = "macos")]
     {
-        if let Some(bytes) = macos_icon(app_id) {
+        if let Some(bytes) = macos_icon(app_name, app_id) {
             return Some((bytes, "image/png", "png"));
         }
     }
@@ -64,9 +64,10 @@ fn locate(app_name: &str, app_id: Option<&str>) -> Option<(Vec<u8>, &'static str
 }
 
 #[cfg(target_os = "macos")]
-fn macos_icon(app_id: Option<&str>) -> Option<Vec<u8>> {
-    let path = Path::new(app_id?);
-    let app = app_bundle(path)?;
+fn macos_icon(app_name: &str, app_id: Option<&str>) -> Option<Vec<u8>> {
+    let app = app_id
+        .and_then(|id| app_bundle(Path::new(id)).map(|p| p.to_path_buf()))
+        .or_else(|| app_by_name(app_name))?;
     let resources = app.join("Contents/Resources");
     let mut icns: Vec<std::path::PathBuf> = Vec::new();
     if let Ok(entries) = fs::read_dir(&resources) {
@@ -78,10 +79,76 @@ fn macos_icon(app_id: Option<&str>) -> Option<Vec<u8>> {
         }
     }
     icns.sort();
-    icns.into_iter().find_map(|path| {
-        let bytes = fs::read(path).ok()?;
-        largest_embedded_png(&bytes)
-    })
+    for path in icns {
+        if let Ok(bytes) = fs::read(&path) {
+            if let Some(png) = largest_embedded_png(&bytes) {
+                return Some(png);
+            }
+        }
+        if let Some(png) = sips_png(&path) {
+            return Some(png);
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn app_by_name(app_name: &str) -> Option<std::path::PathBuf> {
+    let file = format!("{app_name}.app");
+    let mut roots = vec![
+        std::path::PathBuf::from("/Applications"),
+        std::path::PathBuf::from("/System/Applications"),
+        std::path::PathBuf::from("/System/Applications/Utilities"),
+    ];
+    if let Ok(home) = std::env::var("HOME") {
+        roots.push(std::path::PathBuf::from(home).join("Applications"));
+    }
+    for root in roots {
+        let direct = root.join(&file);
+        if direct.is_dir() {
+            return Some(direct);
+        }
+        let Ok(entries) = fs::read_dir(&root) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("app") {
+                continue;
+            }
+            if path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .is_some_and(|stem| stem.eq_ignore_ascii_case(app_name))
+            {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn sips_png(icns: &Path) -> Option<Vec<u8>> {
+    let out = std::env::temp_dir().join(format!(
+        "recall-icon-{}-{}.png",
+        std::process::id(),
+        icns.file_stem().and_then(|s| s.to_str()).unwrap_or("icon")
+    ));
+    let ok = std::process::Command::new("sips")
+        .args(["-s", "format", "png"])
+        .arg(icns)
+        .arg("--out")
+        .arg(&out)
+        .status()
+        .ok()?
+        .success();
+    if !ok {
+        return None;
+    }
+    let bytes = fs::read(&out).ok()?;
+    let _ = fs::remove_file(&out);
+    (!bytes.is_empty()).then_some(bytes)
 }
 
 #[cfg(target_os = "macos")]
@@ -132,15 +199,35 @@ fn linux_icon(
                 .map(|s| s.to_string_lossy().into_owned())
         })
         .unwrap_or_else(|| app_name.to_string());
-    let icon_name = desktop_icon_name(&stem).unwrap_or_else(|| stem.clone());
-    let absolute = std::path::PathBuf::from(&icon_name);
-    if absolute.is_absolute() {
-        return read_icon_file(&absolute);
+    let mut names = vec![
+        desktop_icon_name(&stem).unwrap_or_else(|| stem.clone()),
+        stem.clone(),
+        app_name.to_lowercase().replace(' ', "-"),
+        app_name.to_lowercase().replace(' ', ""),
+    ];
+    names.sort();
+    names.dedup();
+    for icon_name in names {
+        let absolute = std::path::PathBuf::from(&icon_name);
+        if absolute.is_absolute() {
+            if let Some(found) = read_icon_file(&absolute) {
+                return Some(found);
+            }
+            continue;
+        }
+        if let Some(found) = find_named_icon(&icon_name) {
+            return Some(found);
+        }
     }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn find_named_icon(icon_name: &str) -> Option<(Vec<u8>, &'static str, &'static str)> {
     for dir in data_dirs() {
         for candidate in [
-            dir.join(format!("icons/hicolor/128x128/apps/{icon_name}.png")),
             dir.join(format!("icons/hicolor/256x256/apps/{icon_name}.png")),
+            dir.join(format!("icons/hicolor/128x128/apps/{icon_name}.png")),
             dir.join(format!("icons/hicolor/48x48/apps/{icon_name}.png")),
             dir.join(format!("icons/hicolor/scalable/apps/{icon_name}.svg")),
             dir.join(format!("pixmaps/{icon_name}.png")),
@@ -148,6 +235,24 @@ fn linux_icon(
         ] {
             if let Some(found) = read_icon_file(&candidate) {
                 return Some(found);
+            }
+        }
+        let themes = dir.join("icons");
+        let Ok(entries) = fs::read_dir(&themes) else {
+            continue;
+        };
+        for theme in entries.flatten() {
+            for size in ["256x256", "128x128", "64x64", "48x48", "scalable"] {
+                for ext in ["png", "svg"] {
+                    let candidate = theme
+                        .path()
+                        .join(size)
+                        .join("apps")
+                        .join(format!("{icon_name}.{ext}"));
+                    if let Some(found) = read_icon_file(&candidate) {
+                        return Some(found);
+                    }
+                }
             }
         }
     }

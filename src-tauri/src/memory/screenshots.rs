@@ -93,6 +93,9 @@ impl ScreenshotCollector {
         // turn the recorder into a tight retry loop.
         self.last_at = now;
         self.last_window = window_key;
+        if !platform.screen_capture_allowed() {
+            return Ok(false);
+        }
         let jpeg = capture_jpeg().inspect_err(|_| {
             log::warn!("screenshot capture failed");
         })?;

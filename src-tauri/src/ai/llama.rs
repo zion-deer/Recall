@@ -26,7 +26,7 @@ const FILE_NAME: &str = "Llama-3.2-1B-Instruct-Q4_K_M.gguf";
 const DOWNLOAD_URL: &str = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf";
 const SHA256: &str = "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83";
 const SIZE_BYTES: u64 = 807_694_464;
-const MAX_TOKENS: usize = 180;
+const MAX_TOKENS: usize = 320;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -237,7 +237,7 @@ fn generate_with_model(path: &Path, context: &str, question: &str) -> AppResult<
     let messages = vec![
         LlamaChatMessage::new(
             "system".into(),
-            "You are Recall, a local memory assistant. Answer only from the recorded activity in the user message. If it does not contain the answer, say you do not have enough recorded information. Never invent websites, files, applications, times, or events.".into(),
+            "You are Recall, talking with the person about their own computer. Write the way you would say it out loud: a few plain sentences, specific, and easy to follow. Use the app names, window titles, times, and full web addresses from the notes. When a site is listed, say the page, not just the site name. If the notes do not contain the answer, say so in the same tone and do not guess. Never invent apps, files, times, or pages.".into(),
         ).map_err(|e| AppError::Internal(e.to_string()))?,
         LlamaChatMessage::new("user".into(), format!("Question: {question}\n\nRecorded activity:\n{context}"))
             .map_err(|e| AppError::Internal(e.to_string()))?,

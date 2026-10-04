@@ -10,7 +10,7 @@ use crate::memory::MemoryEvent;
 use crate::storage::Database;
 
 const MAX_MEMORIES: usize = 12;
-const MAX_CONTEXT_CHARS: usize = 2_400;
+const MAX_CONTEXT_CHARS: usize = 3_200;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TimeRange {
@@ -81,8 +81,8 @@ pub fn build_context(events: &[MemoryEvent]) -> String {
         if event.kind == "screenshot" {
             line.push_str(" | screenshot");
         }
-        if line.chars().count() > 220 {
-            line = line.chars().take(220).collect();
+        if line.chars().count() > 360 {
+            line = line.chars().take(360).collect();
         }
         if used + line.len() > MAX_CONTEXT_CHARS {
             break;

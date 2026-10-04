@@ -45,6 +45,11 @@ pub trait PlatformAdapter: Send + Sync {
     /// Seconds since the last keyboard or mouse input, if the OS reports it.
     fn idle_seconds(&self) -> Option<u64>;
 
+    /// False when capturing the screen would raise an OS permission dialog.
+    fn screen_capture_allowed(&self) -> bool {
+        true
+    }
+
     /// OS permissions that affect what Recall can record.
     fn permissions(&self) -> Vec<PermissionInfo>;
 

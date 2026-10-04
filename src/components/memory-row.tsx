@@ -15,8 +15,10 @@ export function MemoryRow({
   showTime?: boolean;
   live?: boolean;
 }) {
-  const title = event.windowTitle ?? event.url ?? event.filePath;
-  const website = event.kind === "browser_activity" ? displayHost(event.url) : null;
+  const browser = event.kind === "browser_activity";
+  const title = browser
+    ? event.windowTitle ?? event.url ?? "Web page"
+    : event.windowTitle ?? event.filePath;
   return (
     <button
       type="button"
@@ -34,8 +36,8 @@ export function MemoryRow({
       <AppAvatar name={event.appName} appId={event.appId} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{displayAppName(event.appName)}</span>
-        <span className={cn("block truncate text-xs text-muted-foreground", !title && "italic")}>
-          {title ?? "No window title"}
+        <span className={cn("block truncate text-xs text-muted-foreground", !title && !browser && "italic")}>
+          {browser ? event.url ?? title : title ?? "No window title"}
         </span>
       </span>
       {event.kind === "screenshot" && event.filePath && (
@@ -46,9 +48,7 @@ export function MemoryRow({
         />
       )}
       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {website ? (
-          website
-        ) : live ? (
+        {live && !browser ? (
           <span className="inline-flex items-center gap-1 text-recording">
             <span className="size-1.5 rounded-full bg-recording" aria-hidden />
             Now
@@ -61,11 +61,3 @@ export function MemoryRow({
   );
 }
 
-function displayHost(value: string | null): string | null {
-  if (!value) return null;
-  try {
-    return new URL(value).hostname.replace(/^www\./, "");
-  } catch {
-    return null;
-  }
-}

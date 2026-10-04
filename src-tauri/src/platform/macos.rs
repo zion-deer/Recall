@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use objc::{class, msg_send};
+
 use super::{from_probe, open_folder_with, ActiveWindow, PermissionInfo, PlatformAdapter};
 use crate::error::{AppError, AppResult};
 
@@ -14,7 +16,6 @@ const FULL_DISK_ACCESS_SETTINGS: &str =
 extern "C" {
     fn CGEventSourceSecondsSinceLastEventType(state_id: i32, event_type: u32) -> f64;
     fn CGPreflightScreenCaptureAccess() -> bool;
-    fn CGRequestScreenCaptureAccess() -> bool;
 }
 
 const COMBINED_SESSION_STATE: i32 = 0;
@@ -28,12 +29,18 @@ impl PlatformAdapter for MacAdapter {
     }
 
     fn active_window(&self) -> AppResult<Option<ActiveWindow>> {
-        // The recorder runs on a long-lived background thread; drain the
-        // Objective-C objects created by each probe so they never accumulate.
+        // Listing windows asks macOS for Screen Recording and raises the
+        // Deny / System Settings dialog. Until that access is already on,
+        // only the frontmost app name is read, which does not prompt.
+        if !screen_capture_granted() {
+            return Ok(frontmost_app());
+        }
         let probe = objc::rc::autoreleasepool(active_win_pos_rs::get_active_window);
-        // Without Screen Recording permission macOS omits window titles; the
-        // application name is still available.
         Ok(probe.ok().and_then(from_probe))
+    }
+
+    fn screen_capture_allowed(&self) -> bool {
+        screen_capture_granted()
     }
 
     fn idle_seconds(&self) -> Option<u64> {
@@ -75,9 +82,10 @@ impl PlatformAdapter for MacAdapter {
         if id != SCREEN_RECORDING {
             return Err(AppError::invalid(format!("Unknown permission: {id}")));
         }
-        // SAFETY: no arguments. Shows the system prompt the first time only.
-        let granted = unsafe { CGRequestScreenCaptureAccess() };
-        if !granted {
+        // Do not call CGRequestScreenCaptureAccess. That is the dialog with
+        // Deny and Open System Settings. Open the settings page only when
+        // the user taps Enable inside Recall.
+        if !screen_capture_granted() {
             std::process::Command::new("open")
                 .arg(SCREEN_RECORDING_SETTINGS)
                 .spawn()
@@ -88,5 +96,58 @@ impl PlatformAdapter for MacAdapter {
 
     fn reveal_folder(&self, path: &Path) -> AppResult<()> {
         open_folder_with("open", path)
+    }
+}
+
+fn screen_capture_granted() -> bool {
+    // SAFETY: no arguments; available on macOS 10.15+. Does not prompt.
+    unsafe { CGPreflightScreenCaptureAccess() }
+}
+
+/// Frontmost app via NSWorkspace. This does not request Screen Recording.
+fn frontmost_app() -> Option<ActiveWindow> {
+    use objc::runtime::Object;
+    unsafe {
+        let workspace: *mut Object = msg_send![class!(NSWorkspace), sharedWorkspace];
+        if workspace.is_null() {
+            return None;
+        }
+        let app: *mut Object = msg_send![workspace, frontmostApplication];
+        if app.is_null() {
+            return None;
+        }
+        let name = nsstring_to_string(msg_send![app, localizedName]);
+        if name.is_empty() {
+            return None;
+        }
+        let bundle: *mut Object = msg_send![app, bundleURL];
+        let app_id = if bundle.is_null() {
+            None
+        } else {
+            let path = nsstring_to_string(msg_send![bundle, path]);
+            (!path.is_empty()).then_some(path)
+        };
+        let pid: i32 = msg_send![app, processIdentifier];
+        Some(ActiveWindow {
+            app_name: name,
+            app_id,
+            title: None,
+            process_id: pid.max(0) as u64,
+        })
+    }
+}
+
+fn nsstring_to_string(value: *mut objc::runtime::Object) -> String {
+    if value.is_null() {
+        return String::new();
+    }
+    unsafe {
+        let bytes: *const i8 = msg_send![value, UTF8String];
+        if bytes.is_null() {
+            return String::new();
+        }
+        std::ffi::CStr::from_ptr(bytes)
+            .to_string_lossy()
+            .into_owned()
     }
 }
