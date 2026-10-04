@@ -4,12 +4,13 @@ Recall exists to remember sensitive things about how you use your computer. It i
 
 ## The short version
 
-- Everything Recall records is stored **only on your computer**.
-- Recall has **no account, no servers, no analytics, and no telemetry**. The current version makes no network requests at all.
-- Recording is **off until you turn it on** during setup.
-- You can **pause, exclude, delete, and export** at any time.
+- Everything Recall records is stored on your computer.
+- There is no account, no analytics, and no telemetry.
+- Recording stays off until you turn it on during setup.
+- You can pause, exclude, delete, and export at any time.
+- Recall only uses the network for two things you start yourself: downloading the local AI model, and checking GitHub for an app update. Your activity is not part of either request.
 
-## What Recall records (v0.1.1)
+## What Recall records
 
 When recording is on, for the window in front:
 
