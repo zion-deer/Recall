@@ -58,7 +58,7 @@ untrusted comment: minisign encrypted secret key
 <base64 lines…>
 ```
 
-Include both comment lines and the base64 block. Do not add quotes, `%`, or extra blank lines at the end. On macOS you can copy the file exactly with:
+Include both comment lines and the base64 block. Do not add quotes, `%`, or **an extra blank line after the last line** (GitHub will show `Invalid symbol 10, offset 348` if there is a trailing newline too many). On macOS you can copy the file exactly with:
 
 ```bash
 pbcopy < ~/.tauri/recall.key

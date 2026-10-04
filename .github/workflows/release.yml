@@ -32,7 +32,7 @@ jobs:
             exit 0
           fi
           install -m 600 /dev/null "$RUNNER_TEMP/recall-updater.key"
-          printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$RUNNER_TEMP/recall-updater.key"
+          node scripts/write-updater-signing-key.mjs "$RUNNER_TEMP/recall-updater.key"
           export TAURI_SIGNING_PRIVATE_KEY_PATH="$RUNNER_TEMP/recall-updater.key"
           if node scripts/verify-tauri-signing.mjs; then
             echo "Updater signing OK — release will include signed auto-update artifacts."
@@ -70,7 +70,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           install -m 600 /dev/null "$RUNNER_TEMP/recall-updater.key"
-          printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$RUNNER_TEMP/recall-updater.key"
+          node scripts/write-updater-signing-key.mjs "$RUNNER_TEMP/recall-updater.key"
           PASS=$(python3 -c "import os; print(os.environ.get('TAURI_SIGNING_PRIVATE_KEY_PASSWORD','').rstrip('\\r\\n '))")
           {
             echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$RUNNER_TEMP/recall-updater.key"
