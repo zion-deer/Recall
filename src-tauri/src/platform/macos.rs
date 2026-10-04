@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use objc::{class, msg_send};
+use objc::{class, msg_send, sel, sel_impl};
 
 use super::{from_probe, open_folder_with, ActiveWindow, PermissionInfo, PlatformAdapter};
 use crate::error::{AppError, AppResult};
@@ -105,6 +105,7 @@ fn screen_capture_granted() -> bool {
 }
 
 /// Frontmost app via NSWorkspace. This does not request Screen Recording.
+#[allow(unexpected_cfgs)]
 fn frontmost_app() -> Option<ActiveWindow> {
     use objc::runtime::Object;
     unsafe {
@@ -137,6 +138,7 @@ fn frontmost_app() -> Option<ActiveWindow> {
     }
 }
 
+#[allow(unexpected_cfgs)]
 fn nsstring_to_string(value: *mut objc::runtime::Object) -> String {
     if value.is_null() {
         return String::new();
