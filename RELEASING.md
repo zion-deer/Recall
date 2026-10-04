@@ -73,6 +73,8 @@ npx tauri signer generate -w ~/.tauri/recall.key -f --ci --password ""
 Then update `plugins.updater.pubkey` from `recall.key.pub`, set the new private key in GitHub, delete `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you used an empty password, and cut a new release tag.
 
 Release workflow runs `scripts/verify-tauri-signing.mjs` **before** the long compile so a bad password fails in under a minute instead of after bundling.
+
+Updater bundles (`latest.json`, signatures) are only built on **Release** (tag push), via `src-tauri/tauri.release.conf.json`. Regular CI does not need signing secrets.
 | `APPLE_CERTIFICATE` | Optional macOS Developer ID `.p12`, base64. |
 | `APPLE_CERTIFICATE_PASSWORD` | Optional macOS certificate password. |
 | `APPLE_SIGNING_IDENTITY` | Optional, for example `Developer ID Application: Name (TEAMID)`. |
