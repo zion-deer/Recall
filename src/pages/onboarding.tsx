@@ -135,6 +135,7 @@ export function Onboarding() {
 
 function PermissionsStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   const [version, setVersion] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
   const perms = useAsync(() => api.permissions(), [version]);
 
   async function enable(id: string) {
@@ -144,6 +145,21 @@ function PermissionsStep({ onBack, onNext }: { onBack: () => void; onNext: () =>
       notifyError(e, "Couldn't request permission");
     }
     setVersion((v) => v + 1);
+  }
+
+  async function confirmEnabled() {
+    setNote(null);
+    try {
+      const list = await api.permissions();
+      setVersion((v) => v + 1);
+      if (list.some((p) => p.granted === false)) {
+        setNote("macOS still reports this as off until Recall restarts. You can continue and turn it on later in Settings.");
+        return;
+      }
+      setNote(null);
+    } catch (e) {
+      notifyError(e, "Couldn't check permissions");
+    }
   }
 
   const list = perms.data ?? [];
@@ -174,7 +190,7 @@ function PermissionsStep({ onBack, onNext }: { onBack: () => void; onNext: () =>
                     <Button size="sm" onClick={() => enable(p.id)}>
                       Enable
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setVersion((v) => v + 1)}>
+                    <Button size="sm" variant="ghost" onClick={confirmEnabled}>
                       I've enabled it
                     </Button>
                   </>
@@ -182,6 +198,7 @@ function PermissionsStep({ onBack, onNext }: { onBack: () => void; onNext: () =>
               </div>
             </div>
           ))}
+          {note && <p className="text-sm" role="status">{note}</p>}
           <p className="text-xs text-muted-foreground">Every permission is optional. You can change this later in Settings.</p>
         </div>
       )}

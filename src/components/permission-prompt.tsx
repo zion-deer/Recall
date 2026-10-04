@@ -4,12 +4,18 @@ import { useAsync } from "@/hooks/use-async";
 import { notifyError } from "@/hooks/use-recall";
 import { api, type PermissionInfo } from "@/lib/api";
 
+function stillNeeded(list: PermissionInfo[]): PermissionInfo[] {
+  return list.filter((p) => p.granted === false);
+}
+
 /** Shown on launch only for permissions the OS reports as not granted. */
 export function PermissionPrompt() {
   const [version, setVersion] = useState(0);
   const [dismissed, setDismissed] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [needsRestart, setNeedsRestart] = useState(false);
   const perms = useAsync(() => api.permissions(), [version]);
-  const missing = (perms.data ?? []).filter((p) => p.granted === false);
+  const missing = stillNeeded(perms.data ?? []);
 
   useEffect(() => {
     function onFocus() {
@@ -28,6 +34,25 @@ export function PermissionPrompt() {
       notifyError(e, "Couldn't request permission");
     }
     setVersion((v) => v + 1);
+  }
+
+  async function confirmEnabled() {
+    setChecking(true);
+    setNeedsRestart(false);
+    try {
+      const list = await api.permissions();
+      setVersion((v) => v + 1);
+      if (stillNeeded(list).length === 0) {
+        setDismissed(true);
+        return;
+      }
+      // macOS keeps reporting Screen Recording as off until this process restarts.
+      setNeedsRestart(true);
+    } catch (e) {
+      notifyError(e, "Couldn't check permissions");
+    } finally {
+      setChecking(false);
+    }
   }
 
   return (
@@ -50,13 +75,24 @@ export function PermissionPrompt() {
             </li>
           ))}
         </ul>
+        {needsRestart && (
+          <p className="mt-4 text-sm" role="status">
+            macOS applies that permission only after Recall restarts. Restart now, and this screen stays closed if access is on.
+          </p>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setDismissed(true)}>
             Not now
           </Button>
-          <Button variant="outline" onClick={() => setVersion((v) => v + 1)}>
-            I've enabled them
-          </Button>
+          {needsRestart ? (
+            <Button onClick={() => api.relaunch().catch((e) => notifyError(e, "Couldn't restart Recall"))}>
+              Restart Recall
+            </Button>
+          ) : (
+            <Button variant="outline" disabled={checking} onClick={confirmEnabled}>
+              {checking ? "Checking…" : "I've enabled them"}
+            </Button>
+          )}
         </div>
       </div>
     </div>

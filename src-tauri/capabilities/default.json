@@ -43,6 +43,7 @@
     "allow-ask-recall",
     "allow-get-app-icon",
     "allow-check-for-update",
-    "allow-install-update"
+    "allow-install-update",
+    "allow-relaunch"
   ]
 }

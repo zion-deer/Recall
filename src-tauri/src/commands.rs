@@ -330,6 +330,11 @@ pub async fn check_for_update(app: AppHandle) -> AppResult<Option<UpdateOffer>> 
 }
 
 #[tauri::command]
+pub fn relaunch(app: AppHandle) {
+    app.restart();
+}
+
+#[tauri::command]
 pub async fn install_update(app: AppHandle) -> AppResult<()> {
     updates::install(&app).await
 }

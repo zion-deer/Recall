@@ -35,6 +35,7 @@ const COMMANDS: &[&str] = &[
     "get_app_icon",
     "check_for_update",
     "install_update",
+    "relaunch",
 ];
 
 fn main() {

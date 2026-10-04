@@ -186,6 +186,7 @@ pub fn run() {
             commands::get_app_icon,
             commands::check_for_update,
             commands::install_update,
+            commands::relaunch,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Recall");

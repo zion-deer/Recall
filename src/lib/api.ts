@@ -211,6 +211,7 @@ export const api = {
     call<string | null>("get_app_icon", { appName, appId }),
   checkForUpdate: () => call<UpdateOffer | null>("check_for_update"),
   installUpdate: () => call<void>("install_update"),
+  relaunch: () => call<void>("relaunch"),
 };
 
 export const events = {
