@@ -74,7 +74,12 @@ Then update `plugins.updater.pubkey` from `recall.key.pub`, set the new private 
 
 Release workflow runs `scripts/verify-tauri-signing.mjs` **before** the long compile so a bad password fails in under a minute instead of after bundling.
 
-Updater bundles (`latest.json`, signatures) are only built on **Release** (tag push), via `src-tauri/tauri.release.conf.json`. Regular CI does not need signing secrets.
+Updater bundles (`latest.json`, signatures) are only built when the repository variable `RECALL_SIGNED_UPDATES` is `true` and signing secrets verify. See [docs/RESET-SIGNING.md](docs/RESET-SIGNING.md) for a clean key reset.
+
+Optional code-signing secrets:
+
+| Secret | Purpose |
+| --- | --- |
 | `APPLE_CERTIFICATE` | Optional macOS Developer ID `.p12`, base64. |
 | `APPLE_CERTIFICATE_PASSWORD` | Optional macOS certificate password. |
 | `APPLE_SIGNING_IDENTITY` | Optional, for example `Developer ID Application: Name (TEAMID)`. |

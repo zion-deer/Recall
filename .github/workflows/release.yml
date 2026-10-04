@@ -26,6 +26,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set +e
+          if [ "${{ vars.RECALL_SIGNED_UPDATES }}" != "true" ]; then
+            echo "RECALL_SIGNED_UPDATES is not true — shipping installers only. See docs/RESET-SIGNING.md."
+            echo "updater=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "No TAURI_SIGNING_PRIVATE_KEY — release will ship installers only (no in-app auto-update)."
             echo "updater=false" >> "$GITHUB_OUTPUT"
