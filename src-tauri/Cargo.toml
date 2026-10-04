@@ -1,6 +1,6 @@
 [package]
 name = "recall"
-version = "0.1.7"
+version = "0.1.8"
 description = "Recall — a private, local-first memory for your computer"
 authors = ["Recall"]
 license = "LicenseRef-Proprietary"
