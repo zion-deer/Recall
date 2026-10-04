@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAsync } from "@/hooks/use-async";
-import { notifyError } from "@/hooks/use-recall";
+import { notifyError, useRecall } from "@/hooks/use-recall";
 import { api, type PermissionInfo } from "@/lib/api";
 
 function stillNeeded(list: PermissionInfo[]): PermissionInfo[] {
@@ -9,13 +9,25 @@ function stillNeeded(list: PermissionInfo[]): PermissionInfo[] {
 }
 
 /** Shown on launch only for permissions the OS reports as not granted. */
+function restartKey(version: string): string {
+  return `recall.permission-restarted.${version}`;
+}
+
 export function PermissionPrompt() {
+  const { info } = useRecall();
   const [version, setVersion] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [checking, setChecking] = useState(false);
   const [needsRestart, setNeedsRestart] = useState(false);
+  const restartedOnce = localStorage.getItem(restartKey(info.version)) === "1";
   const perms = useAsync(() => api.permissions(), [version]);
   const missing = stillNeeded(perms.data ?? []);
+
+  useEffect(() => {
+    if (perms.status === "ready" && restartedOnce && stillNeeded(perms.data ?? []).length > 0) {
+      setDismissed(true);
+    }
+  }, [perms.status, perms.data, restartedOnce]);
 
   useEffect(() => {
     function onFocus() {
@@ -43,10 +55,16 @@ export function PermissionPrompt() {
       const list = await api.permissions();
       setVersion((v) => v + 1);
       if (stillNeeded(list).length === 0) {
+        localStorage.removeItem(restartKey(info.version));
         setDismissed(true);
         return;
       }
-      // macOS keeps reporting Screen Recording as off until this process restarts.
+      // One restart per app version. macOS often reports access as off until then,
+      // and restarting again does not change the answer.
+      if (restartedOnce) {
+        setDismissed(true);
+        return;
+      }
       setNeedsRestart(true);
     } catch (e) {
       notifyError(e, "Couldn't check permissions");
@@ -85,7 +103,12 @@ export function PermissionPrompt() {
             Not now
           </Button>
           {needsRestart ? (
-            <Button onClick={() => api.relaunch().catch((e) => notifyError(e, "Couldn't restart Recall"))}>
+            <Button
+              onClick={() => {
+                localStorage.setItem(restartKey(info.version), "1");
+                api.relaunch().catch((e) => notifyError(e, "Couldn't restart Recall"));
+              }}
+            >
               Restart Recall
             </Button>
           ) : (

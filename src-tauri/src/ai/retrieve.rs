@@ -58,7 +58,34 @@ pub fn retrieve(db: &Database, question: &str, now_ms: i64) -> AppResult<Retriev
     Ok(Retrieval { events, context })
 }
 
-pub const INSUFFICIENT_MEMORY: &str = "I don't have enough recorded information to answer that.";
+pub fn is_small_talk(question: &str) -> bool {
+    let text = question
+        .trim()
+        .trim_matches(|c: char| !c.is_alphanumeric() && !c.is_whitespace())
+        .to_lowercase();
+    let text = text.trim();
+    matches!(
+        text,
+        "hi" | "hey"
+            | "hello"
+            | "hello there"
+            | "hi there"
+            | "hey there"
+            | "yo"
+            | "sup"
+            | "thanks"
+            | "thank you"
+            | "how are you"
+            | "how's it going"
+            | "whats up"
+            | "what's up"
+            | "good morning"
+            | "good afternoon"
+            | "good evening"
+    ) || text.starts_with("hello ")
+        || text.starts_with("hi ")
+        || text.starts_with("hey ")
+}
 
 pub fn build_context(events: &[MemoryEvent]) -> String {
     let mut lines = Vec::new();

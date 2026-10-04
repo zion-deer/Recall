@@ -10,7 +10,7 @@ use crate::memory::MemoryEvent;
 use crate::settings::Settings;
 use crate::storage::{now_ms, Database};
 use llama::AiEngine;
-use retrieve::{retrieve, INSUFFICIENT_MEMORY};
+use retrieve::{is_small_talk, retrieve};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,15 +42,19 @@ pub fn ask(
         });
     }
     let retrieval = retrieve(db, question, now_ms())?;
-    if retrieval.events.is_empty() {
-        return Ok(AskResponse {
-            status: "not_enough_memory",
-            answer: Some(INSUFFICIENT_MEMORY.into()),
-            memories: Vec::new(),
-            message: None,
-        });
-    }
+    let chatting = is_small_talk(question);
     if engine.status().phase == llama::AiPhase::NotInstalled {
+        if chatting {
+            return Ok(AskResponse {
+                status: "answered",
+                answer: Some(
+                    "Hey. I'm here. Once the local model is installed I can talk through what you've been doing, or you can search your memory in the meantime."
+                        .into(),
+                ),
+                memories: Vec::new(),
+                message: None,
+            });
+        }
         return Ok(AskResponse {
             status: "model_not_installed",
             answer: None,
@@ -58,7 +62,16 @@ pub fn ask(
             message: Some("AI model isn't installed.".into()),
         });
     }
-    match engine.generate(&retrieval.context, question) {
+    let context = if retrieval.context.is_empty() {
+        if chatting {
+            "The person is just saying hello. No activity notes are attached. Greet them back and invite them to ask what they were doing.".into()
+        } else {
+            "No saved activity matched this. Say that naturally, in a sentence or two, and invite another question. Do not use a stock refusal.".into()
+        }
+    } else {
+        retrieval.context
+    };
+    match engine.generate(&context, question) {
         Ok(answer) => Ok(AskResponse {
             status: "answered",
             answer: Some(answer),
