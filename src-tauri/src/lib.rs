@@ -183,6 +183,7 @@ pub fn run() {
             commands::cancel_ai_download,
             commands::remove_ai_model,
             commands::ask_recall,
+            commands::get_app_icon,
             commands::check_for_update,
             commands::install_update,
         ])

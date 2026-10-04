@@ -1,6 +1,8 @@
 //! Platform abstraction. All OS-specific behavior lives behind
 //! [`PlatformAdapter`]; the rest of Recall never calls OS APIs directly.
 
+pub mod icons;
+
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]

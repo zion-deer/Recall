@@ -6,9 +6,18 @@ import {
   formatBytes,
   formatDayLabel,
   formatDuration,
+  displayAppName,
   retentionLabel,
   startOfDay,
 } from "./format";
+
+describe("displayAppName", () => {
+  it("names common apps and title-cases process names", () => {
+    expect(displayAppName("google-chrome")).toBe("Google Chrome");
+    expect(displayAppName("Notes")).toBe("Notes");
+    expect(displayAppName(null)).toBe("Unknown app");
+  });
+});
 
 describe("formatDuration", () => {
   it("formats seconds, minutes and hours", () => {

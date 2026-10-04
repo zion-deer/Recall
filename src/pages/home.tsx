@@ -11,7 +11,7 @@ import { useAsync } from "@/hooks/use-async";
 import { useNavigation } from "@/hooks/use-navigation";
 import { useRecall } from "@/hooks/use-recall";
 import { api, toRecallError, type AskResponse, type MemoryEvent } from "@/lib/api";
-import { dayRange, describePause, formatDuration } from "@/lib/format";
+import { dayRange, describePause, displayAppName, formatDayLabel, formatDuration, isSameDay } from "@/lib/format";
 
 const SUGGESTIONS = [
   "What was I working on yesterday?",
@@ -141,9 +141,20 @@ export function HomePage() {
               <EmptyActivity recording={settings.recordingEnabled} />
             ) : (
               <div className="flex flex-col">
-                {recent.data.map((e) => (
-                  <MemoryRow key={e.id} event={e} onOpen={setSelected} live={e.id === liveId} />
-                ))}
+                {recent.data.map((e, index) => {
+                  const previous = recent.data?.[index - 1];
+                  const showDay = !previous || !isSameDay(previous.startedAt, e.startedAt);
+                  return (
+                    <div key={e.id}>
+                      {showDay && (
+                        <p className="px-2 pb-1 pt-3 text-xs font-medium text-muted-foreground first:pt-1">
+                          {formatDayLabel(e.startedAt)}
+                        </p>
+                      )}
+                      <MemoryRow event={e} onOpen={setSelected} live={e.id === liveId} />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -175,7 +186,7 @@ export function HomePage() {
                         <AppAvatar name={u.appName} className="size-6 rounded-md text-[11px]" />
                         <div className="min-w-0 flex-1">
                           <div className="flex justify-between gap-2 text-sm">
-                            <span className="truncate">{u.appName}</span>
+                            <span className="truncate">{displayAppName(u.appName)}</span>
                             <span className="shrink-0 tabular-nums text-muted-foreground">
                               {formatDuration(u.totalMs)}
                             </span>

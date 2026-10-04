@@ -207,6 +207,8 @@ export const api = {
   cancelAiDownload: () => call<void>("cancel_ai_download"),
   removeAiModel: () => call<void>("remove_ai_model"),
   ask: (question: string) => call<AskResponse>("ask_recall", { question }),
+  appIcon: (appName: string, appId: string | null) =>
+    call<string | null>("get_app_icon", { appName, appId }),
   checkForUpdate: () => call<UpdateOffer | null>("check_for_update"),
   installUpdate: () => call<void>("install_update"),
 };

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { notifyError } from "@/hooks/use-recall";
 import { api, type MemoryEvent } from "@/lib/api";
-import { formatDateTime, formatDuration } from "@/lib/format";
+import { displayAppName, formatDateTime, formatDuration } from "@/lib/format";
 
 const KIND_LABELS: Record<string, string> = {
   app_activity: "App activity",
@@ -84,9 +84,9 @@ export function MemoryDetailDialog({
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <AppAvatar name={event.appName} className="size-10 text-base" />
+              <AppAvatar name={event.appName} appId={event.appId} className="size-10 text-base" />
               <div className="min-w-0">
-                <DialogTitle className="truncate">{event.appName ?? "Unknown app"}</DialogTitle>
+                <DialogTitle className="truncate">{displayAppName(event.appName)}</DialogTitle>
                 <DialogDescription>{KIND_LABELS[event.kind] ?? event.kind}</DialogDescription>
               </div>
             </div>

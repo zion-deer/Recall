@@ -48,7 +48,13 @@ pub async fn check(app: &AppHandle) -> AppResult<Option<UpdateOffer>> {
         }
         Ok(None) | Ok(Some(_)) => Ok(None),
         Err(error) => {
-            log::warn!("update check failed: {error}");
+            let text = error.to_string();
+            // Releases only publish macOS and Windows. Other systems have nothing to install.
+            if text.contains("platforms") {
+                log::info!("no update package for this system");
+                return Ok(None);
+            }
+            log::warn!("update check failed: {text}");
             Err(AppError::Internal(
                 "Couldn't check for updates. Your current version is unchanged.".into(),
             ))

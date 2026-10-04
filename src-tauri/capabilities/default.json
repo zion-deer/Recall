@@ -41,6 +41,7 @@
     "allow-cancel-ai-download",
     "allow-remove-ai-model",
     "allow-ask-recall",
+    "allow-get-app-icon",
     "allow-check-for-update",
     "allow-install-update"
   ]

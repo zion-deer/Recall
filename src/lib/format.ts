@@ -90,6 +90,41 @@ export function describePause(pausedUntil: number | null, now = Date.now()): str
   return `Paused until ${formatDayLabel(pausedUntil, now)}, ${formatTime(pausedUntil)}`;
 }
 
+const APP_NAMES: Record<string, string> = {
+  "google-chrome": "Google Chrome",
+  "google-chrome-stable": "Google Chrome",
+  chrome: "Google Chrome",
+  chromium: "Chromium",
+  "microsoft-edge": "Microsoft Edge",
+  msedge: "Microsoft Edge",
+  firefox: "Firefox",
+  safari: "Safari",
+  code: "Visual Studio Code",
+  "code-oss": "Visual Studio Code",
+  cursor: "Cursor",
+  slack: "Slack",
+  discord: "Discord",
+  spotify: "Spotify",
+  finder: "Finder",
+  terminal: "Terminal",
+  iterm2: "iTerm",
+  warp: "Warp",
+};
+
+/** Turns a process name like `google-chrome` into a name people recognize. */
+export function displayAppName(name: string | null | undefined): string {
+  const raw = (name ?? "").trim();
+  if (!raw) return "Unknown app";
+  const known = APP_NAMES[raw.toLowerCase()];
+  if (known) return known;
+  if (raw.includes("-") || raw.includes("_") || raw === raw.toLowerCase()) {
+    return raw
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return raw;
+}
+
 export function retentionLabel(days: number | null): string {
   switch (days) {
     case null:

@@ -335,6 +335,28 @@ pub async fn install_update(app: AppHandle) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn get_app_icon(
+    state: State<'_, AppState>,
+    app_name: String,
+    app_id: Option<String>,
+) -> Option<String> {
+    let name = app_name.trim();
+    if name.is_empty() || name.len() > 200 {
+        return None;
+    }
+    if let Some(id) = &app_id {
+        if id.len() > 1024 || id.contains('\0') {
+            return None;
+        }
+    }
+    crate::platform::icons::data_url(
+        &state.data_dir.join("app-icons"),
+        name,
+        app_id.as_deref(),
+    )
+}
+
+#[tauri::command]
 pub fn open_url(app: AppHandle, url: String) -> AppResult<()> {
     use tauri_plugin_opener::OpenerExt;
     let safe =

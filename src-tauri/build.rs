@@ -32,6 +32,7 @@ const COMMANDS: &[&str] = &[
     "cancel_ai_download",
     "remove_ai_model",
     "ask_recall",
+    "get_app_icon",
     "check_for_update",
     "install_update",
 ];

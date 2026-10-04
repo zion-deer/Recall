@@ -1,7 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { AppAvatar } from "@/components/app-avatar";
 import type { MemoryEvent } from "@/lib/api";
-import { formatDuration, formatTime } from "@/lib/format";
+import { displayAppName, formatDayLabel, formatDuration, formatTime, isSameDay } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function MemoryRow({
@@ -28,12 +28,12 @@ export function MemoryRow({
           dateTime={new Date(event.startedAt).toISOString()}
           className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground"
         >
-          {formatTime(event.startedAt)}
+          {isSameDay(event.startedAt, Date.now()) ? formatTime(event.startedAt) : formatDayLabel(event.startedAt)}
         </time>
       )}
-      <AppAvatar name={event.appName} />
+      <AppAvatar name={event.appName} appId={event.appId} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{event.appName ?? "Unknown app"}</span>
+        <span className="block truncate text-sm font-medium">{displayAppName(event.appName)}</span>
         <span className={cn("block truncate text-xs text-muted-foreground", !title && "italic")}>
           {title ?? "No window title"}
         </span>
