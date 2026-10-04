@@ -47,7 +47,12 @@ writeFileSync("src-tauri/Cargo.lock", lockfile);
 
 git("add", "package.json", "package-lock.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json");
 git("commit", "-m", `Release ${version}`);
-git("tag", `v${version}`);
+try {
+  git("tag", "-d", `v${version}`);
+} catch {
+  // no local tag yet
+}
+git("tag", "-a", `v${version}`, "-m", `Release ${version}`);
 
 console.log(`Tagged v${version}.`);
 console.log("Publish it with:\n");
