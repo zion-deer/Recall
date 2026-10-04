@@ -18,19 +18,7 @@ const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
 export function Logo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <rect width="32" height="32" rx="9" className="fill-primary" />
-      <path
-        d="M10 21.5V10.5h6.2a4.3 4.3 0 0 1 0 8.6H10m6.2 0 4.8 2.4"
-        fill="none"
-        className="stroke-primary-foreground"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  return <img src="/logo.png" alt="" className={className} />;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {

@@ -489,6 +489,7 @@ export function PlannedSection({ title, children }: { title: string; children: R
 export function ScreenshotsSection() {
   const [s, set] = useSetting();
   const intervals = [
+    { value: 0, label: "Every new window or app" },
     { value: 15, label: "Every 15 seconds" },
     { value: 30, label: "Every 30 seconds" },
     { value: 60, label: "Every minute" },
@@ -500,7 +501,7 @@ export function ScreenshotsSection() {
       <Group>
         <ToggleRow
           label="Enable screenshots"
-          description="Capture the current display on the interval below. Paused, idle, excluded, and Recall windows are skipped."
+          description="Capture the current display on the schedule below. “Every new window or app” takes one shot when you switch. Paused, idle, excluded, and Recall windows are skipped."
           checked={s.screenshotsEnabled}
           onChange={(value) => set({ screenshotsEnabled: value })}
         />

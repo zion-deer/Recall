@@ -1,6 +1,7 @@
 import { Component, useCallback, useEffect, useMemo, useState, type ErrorInfo, type ReactNode } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { AppShell, Logo } from "@/components/app-shell";
+import { PermissionPrompt } from "@/components/permission-prompt";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -80,6 +81,7 @@ function Recall() {
               </Button>
             </div>
           )}
+          <PermissionPrompt />
           <AppShell>
             {page === "home" && <HomePage />}
             {page === "memory" && <MemoryPage />}

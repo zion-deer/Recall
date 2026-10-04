@@ -20,6 +20,7 @@ const QUALITY: u8 = 60;
 
 pub struct ScreenshotCollector {
     last_at: i64,
+    last_window: Option<String>,
     directory: std::path::PathBuf,
     own_pid: u64,
 }
@@ -28,6 +29,7 @@ impl ScreenshotCollector {
     pub fn new(directory: std::path::PathBuf, own_pid: u64) -> Self {
         Self {
             last_at: 0,
+            last_window: None,
             directory,
             own_pid,
         }
@@ -44,9 +46,24 @@ impl ScreenshotCollector {
         if !settings.recording_enabled || !settings.screenshots_enabled || settings.is_paused(now) {
             return Ok(false);
         }
-        let interval_ms = i64::from(settings.screenshot_interval_secs) * 1000;
-        if now.saturating_sub(self.last_at) < interval_ms {
-            return Ok(false);
+        let window = platform.active_window().unwrap_or(None);
+        let window_key = window.as_ref().map(|w| {
+            format!(
+                "{}|{}|{}",
+                w.app_name,
+                w.app_id.as_deref().unwrap_or(""),
+                w.title.as_deref().unwrap_or("")
+            )
+        });
+        if settings.screenshot_interval_secs == 0 {
+            if self.last_window == window_key {
+                return Ok(false);
+            }
+        } else {
+            let interval_ms = i64::from(settings.screenshot_interval_secs) * 1000;
+            if now.saturating_sub(self.last_at) < interval_ms {
+                return Ok(false);
+            }
         }
         if platform
             .idle_seconds()
@@ -54,9 +71,9 @@ impl ScreenshotCollector {
         {
             return Ok(false);
         }
-        let window = platform.active_window().unwrap_or(None);
         if let Some(window) = &window {
             if window.process_id == self.own_pid {
+                self.last_window = window_key;
                 return Ok(false);
             }
             let candidate = Candidate {
@@ -67,6 +84,7 @@ impl ScreenshotCollector {
                 file_path: None,
             };
             if filter.excludes(&candidate) {
+                self.last_window = window_key;
                 return Ok(false);
             }
         }
@@ -74,6 +92,7 @@ impl ScreenshotCollector {
         // Advance even when capture fails so a broken display server cannot
         // turn the recorder into a tight retry loop.
         self.last_at = now;
+        self.last_window = window_key;
         let jpeg = capture_jpeg().inspect_err(|_| {
             log::warn!("screenshot capture failed");
         })?;

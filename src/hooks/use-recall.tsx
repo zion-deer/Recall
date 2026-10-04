@@ -66,6 +66,7 @@ export function RecallProvider({
   }, [attempt]);
 
   useEffect(() => {
+    let memoryTimer = 0;
     const subs = [
       events.onRecorderStatus((status) =>
         setState((s) => (s.kind === "ready" ? { ...s, status } : s)),
@@ -73,9 +74,13 @@ export function RecallProvider({
       events.onSettingsChanged((settings) =>
         setState((s) => (s.kind === "ready" ? { ...s, settings } : s)),
       ),
-      events.onMemoryChanged(() => setMemoryVersion((v) => v + 1)),
+      events.onMemoryChanged(() => {
+        window.clearTimeout(memoryTimer);
+        memoryTimer = window.setTimeout(() => setMemoryVersion((v) => v + 1), 750);
+      }),
     ];
     return () => {
+      window.clearTimeout(memoryTimer);
       subs.forEach((p) => p.then((unlisten) => unlisten()));
     };
   }, []);

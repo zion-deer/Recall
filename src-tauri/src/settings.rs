@@ -18,7 +18,8 @@ pub const PAUSE_INDEFINITELY: i64 = 9_007_199_254_740_991;
 pub const RETENTION_CHOICES: &[u32] = &[7, 30, 180, 365];
 
 /// Screenshot intervals the settings UI is allowed to store, in seconds.
-pub const SCREENSHOT_INTERVALS: &[u32] = &[15, 30, 60, 300, 600];
+/// `0` means capture when the foreground app or window changes, not on a timer.
+pub const SCREENSHOT_INTERVALS: &[u32] = &[0, 15, 30, 60, 300, 600];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -98,7 +99,7 @@ impl Settings {
         }
         if !SCREENSHOT_INTERVALS.contains(&self.screenshot_interval_secs) {
             return Err(AppError::invalid(
-                "Screenshot interval must be 15 seconds, 30 seconds, 1 minute, 5 minutes, or 10 minutes",
+                "Screenshot interval must be on each window change, 15 seconds, 30 seconds, 1 minute, 5 minutes, or 10 minutes",
             ));
         }
         if let Some(days) = self.screenshot_retention_days {

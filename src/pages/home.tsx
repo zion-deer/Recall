@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAsync } from "@/hooks/use-async";
 import { useNavigation } from "@/hooks/use-navigation";
 import { useRecall } from "@/hooks/use-recall";
-import { api, type MemoryEvent } from "@/lib/api";
+import { api, toRecallError, type AskResponse, type MemoryEvent } from "@/lib/api";
 import { dayRange, describePause, formatDuration } from "@/lib/format";
 
 const SUGGESTIONS = [
@@ -31,16 +31,29 @@ export function HomePage() {
   const { memoryVersion, status, settings } = useRecall();
   const { navigate } = useNavigation();
   const [question, setQuestion] = useState("");
-  const [asked, setAsked] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [answer, setAnswer] = useState<AskResponse | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
   const [selected, setSelected] = useState<MemoryEvent | null>(null);
 
   const today = dayRange(Date.now());
   const recent = useAsync(() => api.listEvents({ limit: 6 }), [memoryVersion]);
   const usage = useAsync(() => api.appUsage(today.start, today.end), [memoryVersion, today.start]);
 
-  function ask(e: FormEvent) {
+  async function ask(e: FormEvent) {
     e.preventDefault();
-    if (question.trim()) setAsked(question.trim());
+    const text = question.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    setAskError(null);
+    try {
+      setAnswer(await api.ask(text));
+    } catch (err) {
+      setAskError(toRecallError(err).message);
+      setAnswer(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   const totalToday = usage.data?.reduce((sum, u) => sum + u.totalMs, 0) ?? 0;
@@ -69,25 +82,29 @@ export function HomePage() {
               autoComplete="off"
               className="h-11 border-0 bg-transparent text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            <Button type="submit" size="lg" className="h-10 rounded-xl px-4" disabled={!question.trim()}>
-              Ask
+            <Button type="submit" size="lg" className="h-10 rounded-xl px-4" disabled={busy || !question.trim()}>
+              {busy ? "Asking…" : "Ask"}
             </Button>
           </div>
         </form>
 
-        {asked ? (
-          <div className="mt-4 flex gap-3 rounded-xl border bg-muted/50 p-4 text-sm" role="status">
-            <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <div className="space-y-2">
-              <p>
-                <span className="font-medium">AI answers aren't available in this version yet.</span>{" "}
-                Keyword search is available now, including page titles and URLs. Your question wasn't sent
-                anywhere.
-              </p>
-              <Button variant="link" className="h-auto p-0" onClick={() => navigate("search")}>
-                Search your memory instead <ArrowRight />
+        {askError || answer ? (
+          <div className="mt-4 space-y-3 rounded-xl border bg-muted/50 p-4 text-sm" role="status">
+            {askError && <p className="text-destructive">{askError}</p>}
+            {answer?.message && <p>{answer.message}</p>}
+            {answer?.answer && <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{answer.answer}</p>}
+            {answer?.status === "model_not_installed" && (
+              <Button size="sm" onClick={() => navigate("settings", "ai")}>
+                Install AI model
               </Button>
-            </div>
+            )}
+            {answer && answer.memories.length > 0 && (
+              <div className="rounded-xl border bg-card px-2">
+                {answer.memories.map((event) => (
+                  <MemoryRow key={event.id} event={event} onOpen={setSelected} />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="mt-3 flex flex-wrap gap-2">
